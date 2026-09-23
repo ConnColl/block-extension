@@ -1090,3 +1090,14 @@ There should be a way to select Done in the Morning Plan view, not only by openi
 ### Not verified yet
 - **The live portfolio page with the relay.** It isn't deployed yet. Until it is, the live page (which has no relay) plays behind the frame for 8 seconds, then Block falls back to The Pitch.
 - **YouTube's own captions:** they appeared over the muted video in testing, doubling the video's burned-in subtitles. The snippet adds `cc_load_policy=0`, which YouTube doesn't always honour.
+
+---
+
+## 2026-09-23 — Copy concept confirmed as intentional
+
+### What I asked
+Update CLAUDE.md's design direction: the Severance-inspired copy, including "outty", is my intentional choice. Don't change or flag it in future edits.
+
+### What changed
+- **CLAUDE.md → Design direction → Copy concept:** the "deliberate choice" and "known risk, accepted" notes are replaced with a single directive. The copy, including "innie", "outty" and "severing", is the owner's intentional choice: use it as written, and don't change, soften or flag it in future edits.
+- **Kept:** the concept, the tone, the rule that the product never names the show or uses its visuals, the Honesty-rules line, and the copy table.

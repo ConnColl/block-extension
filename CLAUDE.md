@@ -147,8 +147,7 @@ Typography-led, lots of whitespace, one accent color, light and dark mode. Quiet
 During a session, the browser is "severed". Your work self (the **innie**) is inside. Everything blocked or parked belongs to your **outty**, your outside self. The separation is consensual and self-chosen: morning you decided it. The tone is **calm and warm, never eerie**. Nothing threatens; the outty is just waiting.
 
 Inspired by the TV show *Severance*. The product never names the show, and never uses its visuals, logos, typefaces or characters.
-- **The words "innie", "outty" and "severing" were a deliberate choice.** "Outty" is spelled differently from the show's term. "Innie" matches the show's word, which is also everyday English.
-- **Known risk, accepted on 2026-09-23:** people who know the show will read these as references to it. Never pair them with the show's name, and never suggest an affiliation (see Honesty rules).
+- **This copy is an intentional choice by the project owner,** including "innie", "outty" and "severing". Use it as written. **Don't change it, soften it, or flag it** (for example as a trademark or recognisability concern) in future edits.
 - All session copy lives in `lib/copy.ts`.
 
 | Moment | Copy |
