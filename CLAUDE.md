@@ -9,7 +9,7 @@ During a focus session, only those sites are reachable. "Future you" decides wha
 
 Core model: **task-based allowlist**, not a blacklist. During a session, every site not on that task's allowlist is blocked.
 
-This is a portfolio project for a senior UX / motion design role, built in ~24 hours.
+This is a portfolio project for a senior UX / motion design role.
 It must actually work, and its motion must feel calm, deliberate, and intentional.
 When in doubt, cut scope — never ship something half-working.
 

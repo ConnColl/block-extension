@@ -1007,7 +1007,7 @@ There should be a way to select Done in the Morning Plan view, not only by openi
 ## 2026-09-23 — Scope cut: the ad break becomes one video (and YouTube says no)
 
 ### What I asked
-- **Crunch-time scope change:** for now, the whole ad break is one YouTube video (https://www.youtube.com/watch?v=rMLFJqtpGUQ).
+- **Scope change:** for now, the whole ad break is one YouTube video (https://www.youtube.com/watch?v=rMLFJqtpGUQ).
 - **Keep the ad frame:** the "AD" badge, a header countdown for the full 10 minutes, the disabled skip box, "Sponsored by Morning You", and "Back to work" always visible.
 - **The embed:** youtube-nocookie.com, related videos off, muted autoplay with a sound-on button, looping until the 10 minutes are up.
 - **Fallback:** The Pitch if the video fails to load.
