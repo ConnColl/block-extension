@@ -465,3 +465,20 @@ After reviewing the plan, I made two changes:
 ### Not verified
 - **A real Chrome restart mid-session** (the grace period was simulated).
 - **A new window (⌘N) over the limit.** Its only tab gets closed, which should close the window; that wasn't tested.
+
+---
+
+## 2026-09-23 — Decision: remove full screen on session start
+
+### What I asked
+Remove full screen on session start, for both manual and scheduled sessions. Keep the one-minute heads-up before scheduled starts.
+
+### Why
+- **Surprise without enforcement.** A browser extension can't block other apps (see Known limitations), so full screen doesn't actually keep anyone in the browser. One ⌘-Tab and they're out.
+- **It works against the principles.** Full screen jumps the window into its own Space on macOS, which is a jarring change imposed on the user. That goes against "Calm over clever" and "Entering focus should feel like a shift", which means noticeable but quiet. A focus tool shouldn't grab the whole screen when it can't back that up.
+- **Why the heads-up stays.** It does real work: it's the only protection for unsaved work before tabs are parked at a scheduled start.
+
+### What changed
+- **Background:** the full-screen code is removed: `enterFullscreen`, `exitFullscreen` and the saved window state.
+- **CLAUDE.md:** the full-screen bullet is removed from MVP item 2. The heads-up bullet stays.
+- **Checks:** type check, 42 tests and the build pass.

@@ -34,10 +34,6 @@ const END_ALARM = 'session-end';
 const BLOCKED_PAGE = browser.runtime.getURL('/blocked.html');
 
 // Tab and window ids only mean something while Chrome is running, so these live in session storage.
-const windowStateItem = storage.defineItem<{ windowId: number; state: `${Browser.windows.WindowState}` } | null>(
-  'session:windowBeforeFocus',
-  { fallback: null },
-);
 /** When this browser session's worker first ran. Session storage is wiped when Chrome restarts. */
 const startupAtItem = storage.defineItem<number | null>('session:startupAt', { fallback: null });
 
@@ -76,33 +72,6 @@ async function restoreTabs(entries: [number, string][]) {
   );
 }
 
-async function enterFullscreen() {
-  try {
-    const win = await browser.windows.getLastFocused({ windowTypes: ['normal'] });
-    if (win.id === undefined || win.state === 'fullscreen') return;
-    // On a back-to-back handover, keep the state from before the first session.
-    if (!(await windowStateItem.getValue())) {
-      await windowStateItem.setValue({ windowId: win.id, state: win.state ?? 'normal' });
-    }
-    await browser.windows.update(win.id, { state: 'fullscreen' });
-  } catch {
-    // No normal window (e.g. all closed) — nothing to do.
-  }
-}
-
-async function exitFullscreen() {
-  const saved = await windowStateItem.getValue();
-  if (!saved) return;
-  await windowStateItem.setValue(null);
-  try {
-    const win = await browser.windows.get(saved.windowId);
-    // If the user already left full screen, leave their window alone.
-    if (win.state === 'fullscreen') await browser.windows.update(saved.windowId, { state: saved.state });
-  } catch {
-    // Window was closed.
-  }
-}
-
 async function startSession(task: Task, source: SessionSource) {
   const session: ActiveSession = { taskId: task.id, startedAt: Date.now(), endsAt: taskEndMs(task), source };
   await syncBlockRule(task);
@@ -122,7 +91,6 @@ async function startSession(task: Task, source: SessionSource) {
   }
   await parkedTabsItem.setValue(keep);
 
-  await enterFullscreen();
 }
 
 /** End the session. If another task is due right now (back-to-back), hand straight over to it. */
@@ -138,7 +106,6 @@ async function endSession(tasks: Task[], now: number) {
   const { restore } = planRestore(await parkedTabsItem.getValue(), null);
   await parkedTabsItem.setValue({});
   await restoreTabs(restore);
-  await exitFullscreen();
 }
 
 /**
