@@ -39,7 +39,16 @@ The only way to end a session early, or to edit or delete the task in an active 
 
 1. **Hold to confirm.** Hold a button for 3 seconds (`deliberate` token). Releasing early cancels the override.
 2. **Emergency passes.** The user gets 3 passes per week. If one is left, holding spends it and the session ends immediately.
-3. **Confession (passes used up).** The user must type this sentence exactly, generated from the task: `I am choosing distraction over [task name]. Morning Me is sighing.` The field doesn't accept paste. Matching ignores capitalization, spaces at the start and end, and repeated spaces between words. Otherwise the words must match exactly, including the task name.
+3. **Confession (passes used up).** The user types a confession generated for this attempt: one line picked at random, followed by "[task name] can wait." The lines:
+   - "I would like to abandon my potential please."
+   - "I am voluntarily entering the scroll hole."
+   - "Please return me to the content mines."
+   - "I would rather consume content than become the person I said I wanted to be."
+
+   Example: `I am voluntarily entering the scroll hole. Write the case study intro can wait.`
+   - A new line is picked at random for each attempt, and it stays the same for the whole attempt.
+   - Matching ignores capitalization, punctuation, spaces at the start and end, and repeated spaces between words. Otherwise the words must match, including the task name.
+   - The field doesn't accept paste or drag-and-drop.
 4. **Unskippable "ad break."** After the confession, a fixed 10-minute ad break plays. The session only ends if the user sits through it.
    - The break is a sequence of short spots, labeled like TV: **"Ad 3 of 12 · Your break begins in 7:42"**. The spot count and lengths add up to exactly 10 minutes.
    - The spots rotate through:

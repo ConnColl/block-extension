@@ -565,3 +565,28 @@ Step 5 is built in three parts, and I test after each. **5a:**
 
 ### Note
 The test used overlapping tasks on purpose, so each override handed over to the next "due" task. The plan page never allows overlapping tasks, so in real use an override simply ends the session.
+
+---
+
+## 2026-09-23 — Plan change: randomized confession lines
+
+### What I asked
+Replace the single confession sentence with one of four lines, picked at random each time, followed by "[task name] can wait.":
+- "I would like to abandon my potential please."
+- "I am voluntarily entering the scroll hole."
+- "Please return me to the content mines."
+- "I would rather consume content than become the person I said I wanted to be."
+
+Keep the matching forgiving of capitalization, extra spaces **and punctuation**, and keep paste disabled.
+
+### What changed
+- **CLAUDE.md, Override design item 3,** is rewritten with the four lines, an example, and the matching rule.
+- **Punctuation is now ignored too.** Previously only capitalization and spaces were. The words still have to match, including the task name.
+- **Detail I filled in:** a line is picked once per attempt and stays fixed while the user types, so it never changes mid-sentence. A new attempt, such as reopening the override page, may get a different line.
+- **"Morning Me is sighing."** is dropped in favour of the new format.
+
+### Why
+- **Variety keeps it from turning into muscle memory.** A fixed sentence can be typed on autopilot; a line that changes each time has to be read first, which is the friction we want.
+- **Ignoring punctuation** means the effort is in writing out the words, not in getting a comma or full stop exactly right. That keeps it friction, not a gotcha.
+
+Not built yet; this is part of step 5b.
