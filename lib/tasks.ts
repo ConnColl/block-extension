@@ -146,3 +146,12 @@ export async function restoreTask(task: Task): Promise<Task | undefined> {
   await tasksItem.setValue(sortTasks([...tasks, task]));
   return undefined;
 }
+
+/** The scheduled session starting within the next minute, for the heads-up notice. Written only by the background. */
+export interface UpcomingSession {
+  taskId: string;
+  taskName: string;
+  startsAt: number;
+}
+
+export const upcomingItem = storage.defineItem<UpcomingSession | null>('local:upcoming', { fallback: null });

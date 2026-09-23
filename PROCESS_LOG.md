@@ -270,3 +270,84 @@ The e2e scripts live in the session scratchpad, not the repo, because they need 
 - **Install warning:** `<all_urls>` makes Chrome show "Read and change all your data on all websites". Redirecting instead of just blocking requires it.
 - **No way to end a session early yet.** That's the override (step 5). Until then, a running session can only end at its end time.
 - **Past tasks aren't marked** complete or missed yet (step 6). They simply lose their Start button.
+
+---
+
+## 2026-09-23 — Step 2.1: Closing blocking gaps and improving site entry
+
+### What I asked
+Testing found issues, and I asked for:
+1. **Pinterest wasn't blocked.** Add a second layer that watches tab URL changes and redirects disallowed URLs.
+2. **Park tabs:** on session start, park disallowed tabs and remember their URLs; restore them when the session ends.
+3. **Full screen** on session start.
+4. **Morning Plan site entry:**
+   - normalize typed sites to bare domains;
+   - suggest domains from open tabs as one-click chips;
+   - show favicons.
+5. **CLAUDE.md:** add a Known limitations section (other apps and browsers, Incognito) and a "Block for Mac" roadmap item.
+
+After the plan:
+- **It wasn't Incognito.**
+- **Full screen** applies to scheduled starts too.
+- **Heads-up:** show a one-minute notice before any scheduled session ("Focus begins in 1:00 · [task name]"), as the mitigation for losing unsaved work in parked tabs.
+
+### What went wrong: why Pinterest got through
+- **Not reproduced with Pinterest itself.** In the test Chrome, Pinterest was blocked in every case: fresh load, another path, Back button. That test browser was signed out, though, and Pinterest never installed its service worker there.
+- **Reproduced with a local test site that installs a service worker** serving its own pages. Mid-session, a navigation to that site **loaded normally, bypassing the declarativeNetRequest redirect**. Pages a service worker serves never reach the network layer the rule watches. A signed-in Pinterest uses a service worker, which is the most likely cause of what I saw.
+- **Fix:** a second layer (below). Verified: the same service-worker page is now sent to the Blocked page.
+
+### What was built
+- **Second blocking layer** (background, `tabs.onUpdated` + `tabs.onReplaced`).
+  - During a session, any tab whose URL changes to a non-allowed http(s) site is sent to the Blocked page.
+  - This covers pages served by a service worker, pages restored from the back/forward cache, and prerendered pages.
+  - It uses `tabs.onUpdated` rather than `webNavigation`, because the existing host access already exposes tab URLs, so there's no extra install warning.
+- **Tab parking and restore.**
+  - At session start, disallowed tabs go to `blocked.html#<url>`. `tabId → url` is saved in `storage.session`, since tab ids only last as long as Chrome is running.
+  - At the end, each tab still on the Blocked page goes back to its URL.
+  - On back-to-back tasks, `planRestore` restores the tabs the next task allows and keeps the rest parked.
+  - Closed tabs are forgotten.
+  - Tabs blocked *during* a session aren't auto-restored; they keep the "Continue to …" link.
+- **Full screen.**
+  - On any session start, the last-focused normal window goes full screen. Its previous state is saved, and a back-to-back handover keeps the original.
+  - At the end the window returns to that state, but only if it's still full screen. If the user left full screen, Block leaves the window alone.
+- **Heads-up.**
+  - The background keeps `upcoming` (the next scheduled task starting within `HEADS_UP_MS` = 60s) in `chrome.storage.local`. A heads-up alarm fires 60s before each start, and every reconcile recomputes it.
+  - A content script on every page shows a small notice in a closed shadow root, animated with `motion/mini` and the motion tokens:
+    - text: "Focus begins in 0:55 · Write intro";
+    - hint: "Save your work. Tabs this task doesn't need will be set aside.";
+    - a dismiss ×.
+  - It fades only when reduced motion is on.
+  - The plan row and the popup show the same countdown.
+  - It isn't shown for manual starts.
+- **Site entry.**
+  - Site cleanup was already in place, and there are now more tests for it: pasted full URLs, ports, subdomains kept, invalid entries rejected.
+  - **"From your open tabs":** chips built from open http(s) tabs, most recently used first, up to 8, leaving out sites already added. They refresh when tabs change.
+  - **Favicons** come from Chrome's `_favicon` API (the `favicon` permission, no install warning), so no site list is sent to a third-party icon service. Sites Chrome has never seen show Chrome's generic globe.
+- **Shared colour tokens:** the colours moved to `assets/tokens.css` (`:root, :host`), so the in-page notice uses the same palette as the extension pages.
+- **CLAUDE.md:**
+  - MVP items 1 and 2 describe the new behaviour.
+  - A new **Known limitations** section, which also collects the limits found in step 2.
+  - Roadmap: **Block for Mac**.
+
+### Verified in a real Chrome (headless Chrome for Testing, real alarms)
+Two scheduled back-to-back tasks, A at 09:49–09:50 allowing example.org and B at 09:50–09:51 allowing example.com:
+- **09:48 (heads-up):** `upcoming` was A, and the notice appeared on example.net. The screenshot shows "Focus begins in 0:55 · Write intro".
+- **09:49 (A starts on its alarm):**
+  - The window went full screen.
+  - example.net and example.com were parked, and example.org stayed open.
+  - The service-worker test page was blocked by layer 2.
+  - `upcoming` switched to B.
+- **09:50 (handover to B):**
+  - example.com was restored.
+  - example.org was parked, and example.net stayed parked.
+  - The window stayed full screen.
+- **09:51 (B ends):**
+  - All tabs were restored to their original URLs.
+  - The window returned to normal.
+  - No dynamic rules were left.
+
+**Tests:** 38 unit tests pass: heads-up timing, `planRestore`, `suggestDomains`, the domain cleanup cases, plus the earlier ones.
+
+### Not verified
+- **Full screen on macOS with a real, visible window.** Headless reports the state change only; the move to a separate Space needs a manual check.
+- **Pinterest itself while signed in.** The service-worker bypass is reproduced and fixed with a stand-in site, but Pinterest wasn't tested directly.

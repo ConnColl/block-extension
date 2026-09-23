@@ -10,7 +10,7 @@ import {
   type Task,
   type TaskDraft,
 } from '@/lib/tasks';
-import { canStart, remainingMs } from '@/lib/session';
+import { HEADS_UP_MS, canStart, formatCountdown, remainingMs, taskStartMs } from '@/lib/session';
 import { useFocus, useNow } from '@/lib/hooks';
 import { send } from '@/lib/messages';
 import { dateKey, formatRemaining, formatToday, fromMinutes, toMinutes } from '@/lib/time';
@@ -181,6 +181,11 @@ export default function App() {
                       locked={isTaskLocked(task.id, session)}
                       remaining={
                         session && isTaskLocked(task.id, session) ? formatRemaining(remainingMs(session, now)) : undefined
+                      }
+                      startsIn={
+                        taskStartMs(task) > now && taskStartMs(task) - now <= HEADS_UP_MS
+                          ? formatCountdown(taskStartMs(task) - now)
+                          : undefined
                       }
                       startable={!session && canStart(task, now)}
                       onStart={() => handleStart(task)}

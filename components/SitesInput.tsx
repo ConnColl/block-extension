@@ -1,6 +1,8 @@
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { normalizeDomain } from '@/lib/domains';
 import { transition } from '@/lib/motion';
+import { useOpenTabDomains } from '@/lib/useOpenTabDomains';
+import { SiteIcon } from './SiteIcon';
 
 interface Props {
   id: string;
@@ -31,6 +33,7 @@ export function commitSiteText(
 
 export function SitesInput({ id, sites, onSitesChange, text, onTextChange, onEntryError, describedBy, invalid }: Props) {
   const reduce = useReducedMotion();
+  const suggestions = useOpenTabDomains(sites);
 
   function commit() {
     const result = commitSiteText(text, sites);
@@ -79,8 +82,9 @@ export function SitesInput({ id, sites, onSitesChange, text, onTextChange, onEnt
                 animate={{ opacity: 1, scale: 1, transition: transition.enter }}
                 exit={{ opacity: 0, transition: transition.exit }}
                 transition={transition.spring}
-                className="flex items-center gap-1 rounded-full bg-accent-soft py-1 pl-3 pr-1 text-sm text-ink"
+                className="flex items-center gap-1.5 rounded-full bg-accent-soft py-1 pl-2.5 pr-1 text-sm text-ink"
               >
+                <SiteIcon domain={site} />
                 {site}
                 <button
                   type="button"
@@ -94,6 +98,32 @@ export function SitesInput({ id, sites, onSitesChange, text, onTextChange, onEnt
             ))}
           </AnimatePresence>
         </ul>
+      )}
+      {suggestions.length > 0 && (
+        <div className="mt-4">
+          <p id={`${id}-suggestions`} className="text-xs font-medium text-muted">
+            From your open tabs
+          </p>
+          <ul aria-labelledby={`${id}-suggestions`} className="mt-2 flex flex-wrap gap-2">
+            {suggestions.map((site) => (
+              <li key={site}>
+                <button
+                  type="button"
+                  aria-label={`Add ${site}`}
+                  onClick={() => {
+                    onEntryError(null);
+                    onSitesChange([...sites, site]);
+                  }}
+                  className="flex items-center gap-1.5 rounded-full border border-dashed border-line py-1 pr-3 pl-2.5 text-sm text-muted transition-colors hover:border-accent hover:text-ink"
+                >
+                  <span aria-hidden="true">+</span>
+                  <SiteIcon domain={site} />
+                  {site}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </div>
   );

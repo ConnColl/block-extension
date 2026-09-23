@@ -23,8 +23,12 @@ When in doubt, cut scope — never ship something half-working.
 - `chrome.tabs` for the tab limit
 
 ## MVP scope (build only this)
-1. **Morning plan** (extension page, opened from the toolbar popup): add tasks with name, start/end time, allowed websites (domains), and an optional one-line "why" (what this task is for). Edit and delete tasks.
+1. **Morning plan** (extension page, opened from the toolbar popup): add tasks with name, start/end time, allowed websites (domains), and an optional one-line "why" (what this task is for). Edit and delete tasks. Typed sites are normalized to bare domains (no protocol, `www` or path). Domains from open tabs are offered as one-click suggestions, and each allowed domain shows its favicon from Chrome's local favicon cache.
 2. **Focus session**: starts automatically at a task's start time (and can be started manually). While active, all main-frame navigations to non-allowed domains redirect to the Blocked page. Subdomains of an allowed domain are allowed.
+   - **Heads-up:** one minute before a scheduled session, open pages show a gentle notice: "Focus begins in 1:00 · [task name]". It gives people time to save their work before tabs are parked.
+   - **Two blocking layers.** The first is a declarativeNetRequest redirect rule. The second watches tab URL changes, to catch pages that load without a network request: pages served by a site's service worker (for example a signed-in Pinterest), pages restored from the back/forward cache, and prerendered pages.
+   - **Tab parking:** at session start, open tabs on non-allowed sites are parked on the Blocked page and their URLs are remembered. When the session ends, they're restored. On back-to-back tasks, a tab the next task also disallows stays parked.
+   - **Full screen:** the current window goes full screen when any session starts, scheduled or manual. At the end it returns to its previous state. If the user leaves full screen mid-session, Block doesn't force it back.
 3. **Blocked page**: calm intercept. Shows the current task, time remaining, and the allowed sites as links. No shaming language.
 4. **Tab limit**: fixed maximum open tabs during a session (default 5). Extra tabs are closed with a gentle in-page notice.
 5. **Override**: intentionally slow, and more costly the more it's used. See **Override design** below.
@@ -55,8 +59,17 @@ The only way to end a session early, or to edit or delete the task in an active 
 Weekly reset: passes reset on Monday at 00:00 local time.
 The ad-break length, spot sequence and developer length are policy constants, not motion tokens. Keep them in one place (e.g. `lib/override.ts`).
 
+## Known limitations
+- **Browser only.** A Chrome extension can't block other apps or other browsers. Opening Safari, or Pinterest's desktop app, bypasses Block.
+- **Incognito** bypasses Block unless the user turns on "Allow in Incognito" for it in `chrome://extensions`.
+- **Unsaved work in parked tabs** is lost when the tab is sent to the Blocked page. The mitigation is the one-minute heads-up before scheduled sessions. Manual starts are the user's own choice, so there's no heads-up for them.
+- **Chrome quitting mid-session** loses the list of parked tabs, because tab ids don't survive a restart. Those tabs reopen on the Blocked page, which offers "Continue to …" once the session is over.
+- **Logins that pass through another domain** are blocked unless that domain is allowed. For example, a Google login goes through `accounts.google.com`.
+- **Content embedded inside an allowed site** (iframes) isn't blocked. Only full page loads are.
+- **Install warning:** redirecting pages needs host access to all sites, so Chrome warns "Read and change all your data on all websites".
+
 ## Out of scope (roadmap only — do not build)
-AI-generated schedules, website suggestions, calendar integration, drag-and-drop rescheduling, analytics dashboards, streaks, distraction reports, tab grouping. These appear in the case study as a roadmap.
+**Block for Mac**: a companion app that extends the same session to other apps and browsers. AI-generated schedules, website suggestions, calendar integration, drag-and-drop rescheduling, analytics dashboards, streaks, distraction reports, tab grouping. These appear in the case study as a roadmap.
 
 ## Motion tokens — the ONLY values allowed
 Shared with the portfolio's motion system. Define in `lib/motion.ts`. Never hardcode durations or easings.

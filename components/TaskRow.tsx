@@ -1,6 +1,7 @@
 import { motion } from 'motion/react';
 import type { Task } from '@/lib/tasks';
 import { formatLength, formatTime } from '@/lib/time';
+import { SiteIcon } from './SiteIcon';
 import { duration, easing } from '@/lib/motion';
 
 interface Props {
@@ -8,6 +9,8 @@ interface Props {
   locked: boolean;
   /** Time left, shown when this task is the active session. */
   remaining?: string;
+  /** "Starts in 0:42" during the heads-up minute. */
+  startsIn?: string;
   /** No session running and this task hasn't ended yet. */
   startable: boolean;
   onStart: () => void;
@@ -17,7 +20,7 @@ interface Props {
   onDelete: () => void;
 }
 
-export function TaskRow({ task, locked, remaining, startable, settling, onStart, onEdit, onDelete }: Props) {
+export function TaskRow({ task, locked, remaining, startsIn, startable, settling, onStart, onEdit, onDelete }: Props) {
   return (
     <div className="flex gap-5 py-5">
       <div className="w-24 shrink-0 text-sm tabular-nums">
@@ -41,14 +44,20 @@ export function TaskRow({ task, locked, remaining, startable, settling, onStart,
         <p className="mt-0.5 text-sm text-muted">
           {locked && remaining ? (
             <span className="font-medium text-accent">In session · {remaining}</span>
+          ) : startsIn ? (
+            <span className="font-medium text-accent">Focus begins in {startsIn}</span>
           ) : (
             formatLength(task.start, task.end)
           )}
         </p>
-        <p className="mt-2 text-sm break-words text-muted">
-          <span className="sr-only">Allowed sites: </span>
-          {task.allowedSites.join(' · ')}
-        </p>
+        <ul aria-label="Allowed sites" className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-sm text-muted">
+          {task.allowedSites.map((site) => (
+            <li key={site} className="flex items-center gap-1.5 break-all">
+              <SiteIcon domain={site} />
+              {site}
+            </li>
+          ))}
+        </ul>
       </div>
 
       <div className="flex shrink-0 items-start gap-1">

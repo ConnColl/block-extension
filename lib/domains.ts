@@ -32,3 +32,25 @@ export function isAllowedHost(host: string, allowedSites: string[]): boolean {
   const h = host.toLowerCase().replace(/\.$/, '');
   return allowedSites.some((site) => h === site || h.endsWith(`.${site}`));
 }
+
+/**
+ * One-click suggestions from open tabs: normalized domains of http(s) tabs,
+ * most recently used first, excluding ones already added.
+ */
+export function suggestDomains(
+  tabs: { url?: string; lastAccessed?: number }[],
+  exclude: string[],
+  limit = 8,
+): string[] {
+  const seen = new Set(exclude);
+  const out: string[] = [];
+  for (const tab of [...tabs].sort((a, b) => (b.lastAccessed ?? 0) - (a.lastAccessed ?? 0))) {
+    if (!tab.url || !/^https?:\/\//.test(tab.url)) continue;
+    const domain = normalizeDomain(tab.url);
+    if (!domain || seen.has(domain)) continue;
+    seen.add(domain);
+    out.push(domain);
+    if (out.length === limit) break;
+  }
+  return out;
+}

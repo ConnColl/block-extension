@@ -1,7 +1,8 @@
 import { browser } from 'wxt/browser';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { tasksOn } from '@/lib/tasks';
-import { remainingMs, taskStartMs } from '@/lib/session';
+import { HEADS_UP_MS, formatCountdown, remainingMs, taskStartMs } from '@/lib/session';
+import { SiteIcon } from '@/components/SiteIcon';
 import { useFocus, useNow } from '@/lib/hooks';
 import { dateKey, formatRemaining, formatTime } from '@/lib/time';
 import { transition } from '@/lib/motion';
@@ -59,7 +60,8 @@ export default function App() {
             <h2 className="mt-5 text-xs font-medium text-muted">Open during this task</h2>
             <ul className="mt-1.5 flex flex-wrap gap-1.5">
               {task.allowedSites.map((site) => (
-                <li key={site} className="rounded-full bg-accent-soft px-2.5 py-0.5 text-sm">
+                <li key={site} className="flex items-center gap-1.5 rounded-full bg-accent-soft py-0.5 pr-2.5 pl-2 text-sm">
+                  <SiteIcon domain={site} />
                   {site}
                 </li>
               ))}
@@ -75,7 +77,14 @@ export default function App() {
           >
             <h1 className="text-sm font-semibold tracking-tight">Block</h1>
             <p className="mt-3 text-sm text-muted">
-              {next ? (
+              {next && taskStartMs(next) - now <= HEADS_UP_MS ? (
+                <>
+                  <span className="font-medium text-accent">
+                    Focus begins in <span className="tabular-nums">{formatCountdown(taskStartMs(next) - now)}</span>
+                  </span>{' '}
+                  · {next.name}
+                </>
+              ) : next ? (
                 <>
                   Next: <span className="font-medium text-ink">{next.name}</span> at {formatTime(next.start)}
                 </>

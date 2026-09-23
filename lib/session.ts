@@ -88,3 +88,36 @@ export function shouldSweepTab(url: string | undefined, allowedSites: string[]):
   }
   return !isAllowedHost(host, allowedSites);
 }
+
+/** How long before a scheduled session the "Focus begins in 1:00" heads-up appears. A policy constant, not a motion token. */
+export const HEADS_UP_MS = 60_000;
+
+/** The next scheduled task starting within the heads-up window (not the one already running). */
+export function findUpcomingTask(tasks: Task[], now: number, runningTaskId?: string): Task | undefined {
+  return tasks.find(
+    (t) => t.id !== runningTaskId && isToday(t, now) && taskStartMs(t) > now && taskStartMs(t) - now <= HEADS_UP_MS,
+  );
+}
+
+/** tabId → the URL the tab was on before it was parked on the Blocked page. */
+export type ParkedTabs = Record<string, string>;
+
+/**
+ * At a session boundary, split parked tabs into those to restore and those to keep parked.
+ * `nextAllowed` is the next session's allowlist (back-to-back tasks), or null if nothing follows.
+ */
+export function planRestore(parked: ParkedTabs, nextAllowed: string[] | null) {
+  const restore: [number, string][] = [];
+  const keep: ParkedTabs = {};
+  for (const [id, url] of Object.entries(parked)) {
+    if (nextAllowed && shouldSweepTab(url, nextAllowed)) keep[id] = url;
+    else restore.push([Number(id), url]);
+  }
+  return { restore, keep };
+}
+
+/** "0:42" */
+export function formatCountdown(ms: number): string {
+  const s = Math.max(0, Math.ceil(ms / 1000));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}

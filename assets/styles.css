@@ -1,33 +1,6 @@
 @import "tailwindcss";
 
-/* One accent. Light and dark follow the system setting. */
-:root {
-  color-scheme: light;
-  --bg: #fafaf8;
-  --surface: #ffffff;
-  --ink: #1b1b19;
-  --muted: #5d5b56;
-  --line: #e4e2dc;
-  --accent: #3a53c5;
-  --accent-ink: #ffffff;
-  --accent-soft: #eceffb;
-  --notice: #8f3a17;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    color-scheme: dark;
-    --bg: #131312;
-    --surface: #1b1b1a;
-    --ink: #edece8;
-    --muted: #a6a39d;
-    --line: #2f2e2b;
-    --accent: #a3b3ff;
-    --accent-ink: #131312;
-    --accent-soft: #232842;
-    --notice: #f1a988;
-  }
-}
+@import "./tokens.css";
 
 @theme inline {
   --color-bg: var(--bg);

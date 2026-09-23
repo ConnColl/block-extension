@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import type { Task } from './tasks';
-import { buildBlockRule, canStart, findDueTask, liveSession, shouldSweepTab } from './session';
+import {
+  buildBlockRule,
+  canStart,
+  findDueTask,
+  findUpcomingTask,
+  formatCountdown,
+  liveSession,
+  planRestore,
+  shouldSweepTab,
+} from './session';
 import { isAllowedHost } from './domains';
 import { dateKey, formatRemaining, timeOnDate } from './time';
 
@@ -93,5 +102,41 @@ describe('time', () => {
   });
   it('builds local date keys', () => {
     expect(dateKey(new Date(2026, 0, 5))).toBe('2026-01-05');
+  });
+});
+
+describe('heads-up', () => {
+  const tasks = [task('10:00', '11:00'), task('11:00', '12:00')];
+  it('finds a task starting within the next minute', () => {
+    expect(findUpcomingTask(tasks, at('09:59'))?.start).toBe('10:00');
+    expect(findUpcomingTask(tasks, at('09:58'))).toBeUndefined();
+    expect(findUpcomingTask(tasks, at('10:00'))).toBeUndefined();
+  });
+  it('announces the next task during a back-to-back session, not the running one', () => {
+    expect(findUpcomingTask(tasks, at('10:59'), '10:00-11:00')?.start).toBe('11:00');
+  });
+  it('formats the countdown', () => {
+    expect(formatCountdown(60_000)).toBe('1:00');
+    expect(formatCountdown(41_200)).toBe('0:42');
+    expect(formatCountdown(-5)).toBe('0:00');
+  });
+});
+
+describe('planRestore', () => {
+  const parked = { '1': 'https://x.com/home', '2': 'https://notion.so/a' };
+  it('restores everything when no session follows', () => {
+    expect(planRestore(parked, null)).toEqual({
+      restore: [
+        [1, 'https://x.com/home'],
+        [2, 'https://notion.so/a'],
+      ],
+      keep: {},
+    });
+  });
+  it('keeps tabs parked that the next task also disallows', () => {
+    expect(planRestore(parked, ['notion.so'])).toEqual({
+      restore: [[2, 'https://notion.so/a']],
+      keep: { '1': 'https://x.com/home' },
+    });
   });
 });
