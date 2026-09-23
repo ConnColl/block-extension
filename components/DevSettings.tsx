@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { overrideLogItem, passesItem, type OverrideLogEntry } from '@/lib/override';
+import { completionLogItem, overrideLogItem, passesItem, type CompletionLogEntry, type OverrideLogEntry } from '@/lib/override';
 import { usePassesLeft } from '@/lib/hooks';
 import { clearSampleData, devSettingsItem, fillSampleData, type DevSettings as Settings } from '@/lib/devSettings';
 
@@ -10,6 +10,12 @@ export function DevSettings({ now }: { now: number }) {
   const passes = usePassesLeft(now);
   const [log, setLog] = useState<OverrideLogEntry[]>([]);
   const [settings, setSettings] = useState<Settings | null>(null);
+  const [completions, setCompletions] = useState<CompletionLogEntry[]>([]);
+
+  useEffect(() => {
+    completionLogItem.getValue().then(setCompletions);
+    return completionLogItem.watch(setCompletions);
+  }, []);
   const [sampleMsg, setSampleMsg] = useState('');
 
   useEffect(() => {
@@ -101,6 +107,25 @@ export function DevSettings({ now }: { now: number }) {
                 <li key={`${e.at}-${e.taskId}`} className="tabular-nums">
                   {timeFmt.format(e.at)} · {e.taskName || 'Untitled'} · {e.method} · {e.result} at {e.stage} ·{' '}
                   {e.passesLeft} left
+                </li>
+              ))}
+          </ol>
+        )}
+      </div>
+      <div className="mt-6">
+        <p className="text-sm font-medium">Completion log</p>
+        {completions.length === 0 ? (
+          <p className="mt-1 text-sm text-muted">No completions yet.</p>
+        ) : (
+          <ol className="mt-2 space-y-1 text-sm text-muted">
+            {[...completions]
+              .reverse()
+              .slice(0, 10)
+              .map((e) => (
+                <li key={`${e.at}-${e.taskId}`} className="tabular-nums">
+                  {timeFmt.format(e.at)} · {e.taskName} · {e.outcome} ({e.how}
+                  {e.elapsedMin !== undefined && `, ${e.elapsedMin} of ${e.plannedMin} min`}
+                  {e.then && `, then ${e.then}`})
                 </li>
               ))}
           </ol>

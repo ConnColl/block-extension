@@ -20,7 +20,12 @@ import {
   type SessionSource,
 } from '@/lib/session';
 import type { Request, Response } from '@/lib/messages';
+import { doneSummary, nextTaskAfter, shiftedTo, trimmedEnd } from '@/lib/completion';
+import { sortTasks } from '@/lib/tasks';
+import { toMinutes } from '@/lib/time';
 import {
+  completionLogItem,
+  type CompletionLogEntry,
   outcomesItem,
   overrideLogItem,
   passesItem,
@@ -137,7 +142,14 @@ async function reconcile({ catchUp }: { catchUp: boolean }) {
 
   if (session && (isExpired(session, now) || !sessionTask)) {
     await settleAdBreaks(session.taskId, 'outlasted');
+    // Ended on its own: ask "Did you finish?". Unanswered counts as missed.
+    const outcomes = await outcomesItem.getValue();
+    const askAbout = sessionTask && !(sessionTask.id in outcomes) ? sessionTask : null;
+    if (askAbout) {
+      await outcomesItem.setValue({ ...outcomes, [askAbout.id]: { outcome: 'missed', at: session.endsAt, pending: true } });
+    }
     await endSession(tasks, now);
+    if (askAbout) askOnActiveTab(askAbout);
     session = await activeSessionItem.getValue();
   } else if (session && sessionTask) {
     // Re-assert in case the rule or alarm was lost (e.g. extension reloaded mid-session).
@@ -233,6 +245,83 @@ async function overrideWithPass(taskId: string): Promise<Response> {
   await endSession(tasks, now); // the outcome keeps this task from restarting
   await syncUpcoming(tasks, now);
   return { ok: true, passesLeft: left - 1 };
+}
+
+async function logCompletion(entry: Omit<CompletionLogEntry, 'at'>, at = Date.now()) {
+  await completionLogItem.setValue([...(await completionLogItem.getValue()), { at, ...entry }]);
+}
+
+const minutesOfDay = (ms: number) => {
+  const d = new Date(ms);
+  return d.getHours() * 60 + d.getMinutes();
+};
+
+/**
+ * "Done" during a session. Honor-based by design: Block is a commitment device,
+ * not a lie detector. The task ends now (its end time moves to now); then either
+ * the next task starts immediately at its planned length, or the time is taken back.
+ */
+async function finishEarly(taskId: string, then: 'start-next' | 'take-back'): Promise<Response> {
+  const now = Date.now();
+  const session = liveSession(await activeSessionItem.getValue(), now);
+  if (!session || session.taskId !== taskId) return { ok: false, error: 'This session has already ended.' };
+  const tasks = await tasksItem.getValue();
+  const task = tasks.find((t) => t.id === taskId);
+  if (!task) return { ok: false, error: 'That task no longer exists.' };
+  const outcomes = await outcomesItem.getValue();
+  const next = then === 'start-next' ? nextTaskAfter(tasks, task, outcomes) : undefined;
+  if (then === 'start-next' && !next) return { ok: false, error: 'There’s no next task today.' };
+
+  const { elapsedMin, totalMin, earnedMin } = doneSummary(session, now);
+  const end = trimmedEnd(task, minutesOfDay(now));
+  const movedNext = next ? { ...next, ...shiftedTo(next, toMinutes(end)) } : undefined;
+  const updated = sortTasks(
+    tasks.map((t) => (t.id === task.id ? { ...t, end } : movedNext && t.id === movedNext.id ? movedNext : t)),
+  );
+
+  const finishedOutcomes = {
+    ...outcomes,
+    [task.id]: { outcome: 'completed' as const, at: now, early: true, plannedEnd: task.end },
+  };
+  await outcomesItem.setValue(finishedOutcomes);
+  await tasksItem.setValue(updated);
+  await logCompletion({ taskId, taskName: task.name, outcome: 'completed', how: 'done-early', elapsedMin, plannedMin: totalMin, then }, now);
+
+  if (movedNext) await startSession(movedNext, 'manual');
+  else await endSession(updated, now);
+  await syncUpcoming(updated, now, movedNext?.id);
+  return {
+    ok: true,
+    earnedMinutes: movedNext ? undefined : earnedMin,
+    next: movedNext ? { name: movedNext.name, end: movedNext.end } : undefined,
+  };
+}
+
+/** "Did you finish?" Yes → completed at the task's end; No → missed. Stated neutrally either way. */
+async function answerTask(taskId: string, finished: boolean): Promise<Response> {
+  const task = (await tasksItem.getValue()).find((t) => t.id === taskId);
+  if (!task) return { ok: false, error: 'That task no longer exists.' };
+  const outcomes = await outcomesItem.getValue();
+  const current = outcomes[taskId];
+  if (current && !current.pending && current.outcome !== 'missed') return { ok: true };
+  const at = current?.at ?? taskEndMs(task);
+  await outcomesItem.setValue({ ...outcomes, [taskId]: { outcome: finished ? 'completed' : 'missed', at } });
+  await logCompletion({ taskId, taskName: task.name, outcome: finished ? 'completed' : 'missed', how: 'answered' });
+  return { ok: true };
+}
+
+/** A calm in-page question on the page the user is looking at when a session ends on its own. */
+const ASK_DELAY_MS = 1500; // let restored tabs finish loading first
+function askOnActiveTab(task: Task) {
+  setTimeout(async () => {
+    const [tab] = await browser.tabs
+      .query({ active: true, lastFocusedWindow: true, windowType: 'normal' })
+      .catch(() => []);
+    if (tab?.id === undefined || !/^https?:\/\//.test(tab.url ?? '')) return; // Block's own pages ask themselves
+    await browser.tabs
+      .sendMessage(tab.id, { type: 'notice/session-ended', taskId: task.id, taskName: task.name })
+      .catch(() => {});
+  }, ASK_DELAY_MS);
 }
 
 /** "Back to work" (or leaving) during an override attempt. */
@@ -450,7 +539,11 @@ export default defineBackground(() => {
           ? () => overrideWithPass(message.taskId)
           : message?.type === 'override/abandon'
             ? () => abandonOverride(message.taskId, message.stage)
-            : null;
+            : message?.type === 'session/done'
+              ? () => finishEarly(message.taskId, message.then)
+              : message?.type === 'task/answer'
+                ? () => answerTask(message.taskId, message.finished)
+                : null;
     if (!handler) return;
     serial(handler).then(sendResponse, (err: unknown) =>
       sendResponse({ ok: false, error: err instanceof Error ? err.message : 'Something went wrong.' }),

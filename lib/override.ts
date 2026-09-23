@@ -35,7 +35,17 @@ export function spendPass(record: PassRecord | null, now: number): PassRecord {
  * How a task's session finished. A task with an outcome never auto-starts or
  * offers "Start now" again. Step 6 adds `completed` and `missed`.
  */
-export type TaskOutcome = { outcome: 'overridden' | 'completed' | 'missed'; at: number };
+export type TaskOutcome = {
+  outcome: 'overridden' | 'completed' | 'missed';
+  /** When it happened: the completion time for `completed`. */
+  at: number;
+  /** Ended without an answer yet: counts as missed until the user says otherwise. */
+  pending?: boolean;
+  /** Finished with "Done" before its end time. */
+  early?: boolean;
+  /** The planned end before an early finish trimmed it. */
+  plannedEnd?: string;
+};
 export const outcomesItem = storage.defineItem<Record<string, TaskOutcome>>('local:outcomes', { fallback: {} });
 
 export type OverrideStage = 'hold' | 'confession' | 'ad-break';
@@ -84,3 +94,19 @@ export function confessionMatches(typed: string, target: string): boolean {
   const t = normalizeConfession(typed);
   return t.length > 0 && t === normalizeConfession(target);
 }
+
+/** Completion log: every "Done" and every "Did you finish?" answer, with when. */
+export interface CompletionLogEntry {
+  at: number;
+  taskId: string;
+  taskName: string;
+  outcome: 'completed' | 'missed';
+  how: 'done-early' | 'answered';
+  /** Minutes worked (session start to done) and planned, for early finishes. */
+  elapsedMin?: number;
+  plannedMin?: number;
+  /** What came after an early finish. */
+  then?: 'start-next' | 'take-back';
+}
+
+export const completionLogItem = storage.defineItem<CompletionLogEntry[]>('local:completionLog', { fallback: [] });

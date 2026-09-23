@@ -1,5 +1,5 @@
 import { storage } from 'wxt/utils/storage';
-import { activeSessionItem, tasksItem, type Task } from './tasks';
+import { activeSessionItem, sortTasks, tasksItem, type Task } from './tasks';
 import { outcomesItem, weekStartKey, type TaskOutcome } from './override';
 import { dateKey, timeOnDate, toMinutes } from './time';
 import { findOverlap } from './tasks';
@@ -49,7 +49,7 @@ export async function fillSampleData(now = Date.now()) {
     addedOutcomes[task.id] = { outcome: 'completed', at: timeOnDate(date, s.end) };
   });
 
-  await tasksItem.setValue([...tasks, ...added]);
+  await tasksItem.setValue(sortTasks([...tasks, ...added]));
   await outcomesItem.setValue({ ...outcomes, ...addedOutcomes });
   return added.length;
 }

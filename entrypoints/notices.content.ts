@@ -47,8 +47,23 @@ export default defineContentScript({
     renderHeadsUp(await upcomingItem.getValue());
     const unwatch = upcomingItem.watch(renderHeadsUp);
 
-    const onMessage = (msg: TabLimitNotice) => {
+    type SessionEnded = { type: 'notice/session-ended'; taskId: string; taskName: string };
+    const onMessage = (msg: TabLimitNotice | SessionEnded) => {
       if (msg?.type === 'notice/tab-limit') showTabLimitNotice(msg);
+      if (msg?.type === 'notice/session-ended') {
+        // Closure without guilt: a warm question, either answer is fine.
+        const answer = (finished: boolean) =>
+          void browser.runtime.sendMessage({ type: 'task/answer', taskId: msg.taskId, finished }).catch(() => {});
+        showNotice({
+          title: [copy.welcomeTitle],
+          body: `Did you finish “${msg.taskName}”?`,
+          actions: [
+            { label: 'Yes, finished', onClick: () => answer(true) },
+            { label: 'Not this time', onClick: () => answer(false) },
+          ],
+          closeLabel: 'Answer later',
+        });
+      }
     };
     browser.runtime.onMessage.addListener(onMessage);
 

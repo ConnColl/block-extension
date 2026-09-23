@@ -32,7 +32,7 @@ export function partitionSchedule(tasks: Task[], nowMin: number, finished: Finis
   let current: Task | undefined;
   const upcoming: Task[] = [];
   const earlier: Task[] = [];
-  for (const t of tasks) {
+  for (const t of [...tasks].sort((a, b) => toMinutes(a.start) - toMinutes(b.start))) {
     const s = toMinutes(t.start);
     const e = toMinutes(t.end);
     if (t.id in finished || e <= nowMin) earlier.push(t);

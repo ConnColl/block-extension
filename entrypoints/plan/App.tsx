@@ -13,7 +13,7 @@ import {
 import { HEADS_UP_MS, canStart, formatCountdown, remainingMs, taskStartMs } from '@/lib/session';
 import { useFocus, useNow, useOutcomes } from '@/lib/hooks';
 import { send } from '@/lib/messages';
-import { dateKey, formatRemaining, formatTime, formatToday, fromMinutes } from '@/lib/time';
+import { dateKey, formatRemaining, formatTime, formatToday, fromMinutes, toMinutes } from '@/lib/time';
 import { duration, easing, transition } from '@/lib/motion';
 import { partitionSchedule, progressThrough, suggestSlot } from '@/lib/schedule';
 import { TaskForm } from '@/components/TaskForm';
@@ -160,6 +160,13 @@ export default function App() {
             startable={!session && canStart(task, now, outcomes)}
             endedEarly={outcomes[task.id]?.outcome === 'overridden'}
             completed={outcomes[task.id]?.outcome === 'completed'}
+            missed={outcomes[task.id]?.outcome === 'missed' && !outcomes[task.id]?.pending}
+            ask={
+              nowFraction === undefined &&
+              toMinutes(task.end) <= nowMin &&
+              !isTaskLocked(task.id, session) &&
+              (!outcomes[task.id] || !!outcomes[task.id]?.pending)
+            }
             nowFraction={nowFraction}
             onStart={() => handleStart(task)}
             settling={settlingId === task.id}
@@ -276,7 +283,7 @@ export default function App() {
                           exit={{ height: 0, opacity: 0, transition: transition.exit }}
                           className="overflow-hidden"
                         >
-                          <ol aria-label="Earlier today" className="relative mt-2 divide-y divide-line opacity-80">
+                          <ol aria-label="Earlier today" className="relative mt-2 divide-y divide-line">
                             <AnimatePresence initial={false} mode="popLayout">
                               {schedule.earlier.map((task) => renderTask(task))}
                             </AnimatePresence>

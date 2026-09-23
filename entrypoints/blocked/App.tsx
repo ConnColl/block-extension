@@ -1,8 +1,12 @@
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { browser } from 'wxt/browser';
 import { AnimatePresence, motion, useReducedMotion, type Variants } from 'motion/react';
 import { remainingMs, sessionProgress } from '@/lib/session';
-import { useFocus, useNow } from '@/lib/hooks';
+import { useFocus, useNow, useOutcomes } from '@/lib/hooks';
+import { DoneFlow, type DoneResult } from '@/components/DoneFlow';
+import { FinishedQuestion } from '@/components/FinishedQuestion';
+import { CheckMark } from '@/components/CheckMark';
+import type { Task } from '@/lib/tasks';
 import { formatRemaining, formatTime } from '@/lib/time';
 import { duration, easing, transition } from '@/lib/motion';
 import { SiteIcon } from '@/components/SiteIcon';
@@ -54,7 +58,13 @@ export default function App() {
   useTabLimitNotices();
   const reduce = useReducedMotion();
   const now = useNow();
-  const { session, task, loaded } = useFocus(now);
+  const { session, task, tasks, loaded } = useFocus(now);
+  const outcomes = useOutcomes();
+  const [doneResult, setDoneResult] = useState<DoneResult | null>(null);
+  // Remember the task this page was showing, to ask about it once the session is over.
+  const lastTask = useRef<Task | null>(null);
+  if (task) lastTask.current = task;
+  const askAbout = !session && lastTask.current && outcomes[lastTask.current.id]?.pending ? lastTask.current : null;
   const attempted = attemptedUrl();
   const host = attempted?.hostname.replace(/^www\./, '');
   const { container, item } = useEntrance(reduce);
@@ -102,6 +112,19 @@ export default function App() {
                     transition={{ duration: duration.emphasized, ease: easing.linear }}
                   />
                 </div>
+                {tasks && (
+                  <div className="mt-5">
+                    <DoneFlow
+                      key={task.id}
+                      session={session}
+                      task={task}
+                      tasks={tasks}
+                      outcomes={outcomes}
+                      now={now}
+                      onDone={setDoneResult}
+                    />
+                  </div>
+                )}
               </motion.div>
 
               <motion.section variants={item} aria-labelledby="allowed-heading" className="mt-12">
@@ -146,12 +169,25 @@ export default function App() {
             </motion.div>
           ) : (
             <motion.div key="over" variants={container} initial="hidden" animate="show" exit="exit">
+              {doneResult?.kind === 'took-time-back' && (
+                <motion.div variants={item} className="mb-8 flex items-center gap-3">
+                  <CheckMark />
+                  <p className="text-lg font-medium">
+                    You earned {doneResult.earnedMinutes} {doneResult.earnedMinutes === 1 ? 'minute' : 'minutes'}.
+                  </p>
+                </motion.div>
+              )}
               <motion.h1 variants={item} className="text-4xl leading-tight font-semibold tracking-tight">
                 {copy.welcomeTitle}
               </motion.h1>
               <motion.p variants={item} className="mt-3 text-lg text-muted">
                 {copy.welcomeBody}
               </motion.p>
+              {askAbout && (
+                <motion.div variants={item} className="mt-8 rounded-xl bg-surface p-5">
+                  <FinishedQuestion taskId={askAbout.id} taskName={askAbout.name} />
+                </motion.div>
+              )}
               {attempted && (
                 <motion.div variants={item} className="mt-10">
                   <a

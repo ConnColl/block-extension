@@ -3,6 +3,7 @@ import type { Task } from '@/lib/tasks';
 import { formatLength, formatTime } from '@/lib/time';
 import { SiteIcon } from './SiteIcon';
 import { copy } from '@/lib/copy';
+import { FinishedQuestion } from './FinishedQuestion';
 import { duration, easing } from '@/lib/motion';
 import { useReducedMotion } from 'motion/react';
 
@@ -19,8 +20,12 @@ interface Props {
   nowFraction?: number;
   /** Ended by an override. Stated neutrally. */
   endedEarly?: boolean;
-  /** Marked completed (step 6; sample data for now). */
+  /** Marked completed. */
   completed?: boolean;
+  /** Answered "Not this time". Stated neutrally. */
+  missed?: boolean;
+  /** Time has passed with no answer yet: ask "Did you finish?". */
+  ask?: boolean;
   onStart: () => void;
   /** Just added or restored — the accent marker settles back to neutral. */
   settling: boolean;
@@ -28,7 +33,7 @@ interface Props {
   onDelete: () => void;
 }
 
-export function TaskRow({ task, locked, remaining, startsIn, startable, endedEarly, completed, nowFraction, settling, onStart, onEdit, onDelete }: Props) {
+export function TaskRow({ task, locked, remaining, startsIn, startable, endedEarly, completed, missed, ask, nowFraction, settling, onStart, onEdit, onDelete }: Props) {
   return (
     <div className="flex gap-5 py-5">
       <div className="w-24 shrink-0 text-sm tabular-nums">
@@ -62,6 +67,8 @@ export function TaskRow({ task, locked, remaining, startsIn, startable, endedEar
             <span className="font-medium text-accent">In session · {remaining}</span>
           ) : completed ? (
             <>{formatLength(task.start, task.end)} · Completed</>
+          ) : missed ? (
+            <>{formatLength(task.start, task.end)} · Missed</>
           ) : endedEarly ? (
             <>{formatLength(task.start, task.end)} · Ended early</>
           ) : startsIn ? (
@@ -81,6 +88,11 @@ export function TaskRow({ task, locked, remaining, startsIn, startable, endedEar
             </li>
           ))}
         </ul>
+        {ask && (
+          <div className="mt-3">
+            <FinishedQuestion compact taskId={task.id} taskName={task.name} />
+          </div>
+        )}
       </div>
 
       <div className="flex shrink-0 items-start gap-1">

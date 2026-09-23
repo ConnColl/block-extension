@@ -32,7 +32,15 @@ When in doubt, cut scope — never ship something half-working.
 4. **Tab limit**: at most 5 tabs *in use* during a session. Parked tabs are paused, not in use, so they don't count. A new tab that would go over is closed. The tab the user was on shows a gentle notice: "5 of 5 tabs in use. Close one to open another." When the closed tab's URL is on the allowlist, the notice offers **Open here instead**, which loads it in the current tab. Tabs Chrome restores in the first 10 seconds after startup aren't closed, and popup windows (e.g. sign-in) don't count.
 5. **Override**: intentionally slow, and more costly the more it's used. See **Override design** below.
 6. **Task completion**: at session end, ask "Did you finish?" Mark complete or missed. A task that ends without an answer is marked missed.
-7. **Popup**: current task, time remaining, tabs in use / limit (plus paused tabs, e.g. "3 of 5 tabs in use · 7 paused"), and "Open plan".
+   - **Where it's asked:** an in-page notice on the page the user is on ("Welcome back outty. Did you finish '[task]'?" with Yes, finished / Not this time), the Blocked page's session-over state, the popup, and the plan row for any past task not yet answered. It stays marked missed until the user answers Yes.
+   - **Finishing early:** during a session, a **Done** button in the popup and on the Blocked page. No friction, just a light check: "Done already? 16 of 60 minutes." then "Yes, done." Then two choices:
+     - **Start next task now:** the next task starts immediately and keeps its planned length. Later tasks stay where they are.
+     - **Take the time back:** blocking ends until the next task's scheduled start, with "You earned 44 minutes."
+     - With no next task, only "Take the time back" is offered.
+     - The finished task's end time moves to when it was finished (the planned end is kept with its outcome). Every completion is logged with its time.
+   - **Done is honor-based by design. Block is a commitment device, not a lie detector.** It trusts the user's word; the friction lives only in the override.
+   - Signature moment 6: a check that settles in and draws itself on completion. Missed is noted neutrally ("Noted. It happens.").
+7. **Popup**: current task, time remaining, a Done button, tabs in use / limit (plus paused tabs, e.g. "3 of 5 tabs in use · 7 paused"), and "Open plan".
 
 ## Override design
 The only way to end a session early, or to edit or delete the task in an active session.

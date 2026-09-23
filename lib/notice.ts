@@ -37,6 +37,10 @@ ${tokens}
   color: var(--accent-ink); background: var(--accent);
 }
 .action:hover { opacity: 0.9; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.actions .action { margin-top: 0; }
+.action.secondary { color: var(--ink); background: transparent; box-shadow: inset 0 0 0 1px var(--line); }
+.action.secondary:hover { background: var(--bg); opacity: 1; }
 .close {
   all: unset; cursor: pointer; flex: none;
   width: 24px; height: 24px; display: grid; place-items: center;
@@ -69,6 +73,8 @@ export interface NoticeOptions {
   /** Filled / total dots, e.g. tabs in use. */
   meter?: { filled: number; total: number };
   action?: { label: string; ariaLabel?: string; onClick: () => void };
+  /** Several choices side by side; the first is primary. */
+  actions?: { label: string; onClick: () => void }[];
   closeLabel: string;
   /** Auto-hide after this long; the timer pauses while hovered or focused. */
   autoHideMs?: number;
@@ -122,6 +128,23 @@ export function showNotice(opts: NoticeOptions): Notice {
       remove();
     });
     text.append(action);
+  }
+
+  if (opts.actions?.length) {
+    const row = document.createElement('div');
+    row.className = 'actions';
+    opts.actions.forEach((a, i) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = i === 0 ? 'action' : 'action secondary';
+      btn.textContent = a.label;
+      btn.addEventListener('click', () => {
+        a.onClick();
+        remove();
+      });
+      row.append(btn);
+    });
+    text.append(row);
   }
 
   const close = document.createElement('button');

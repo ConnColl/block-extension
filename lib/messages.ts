@@ -5,8 +5,12 @@ import type { OverrideStage } from './override';
 export type Request =
   | { type: 'session/start'; taskId: string }
   | { type: 'override/pass'; taskId: string }
-  | { type: 'override/abandon'; taskId: string; stage: OverrideStage };
-export type Response = { ok: true; passesLeft?: number } | { ok: false; error: string };
+  | { type: 'override/abandon'; taskId: string; stage: OverrideStage }
+  | { type: 'session/done'; taskId: string; then: 'start-next' | 'take-back' }
+  | { type: 'task/answer'; taskId: string; finished: boolean };
+export type Response =
+  | { ok: true; passesLeft?: number; earnedMinutes?: number; next?: { name: string; end: string } }
+  | { ok: false; error: string };
 
 export async function send(request: Request): Promise<Response> {
   try {

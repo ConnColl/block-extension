@@ -57,3 +57,11 @@ describe('progressThrough', () => {
     expect(progressThrough(t('x', '10:00', '11:00'), m('12:00'))).toBe(1);
   });
 });
+
+describe('partitionSchedule ordering', () => {
+  it('lists each group in time order even if storage is unsorted', () => {
+    const p = partitionSchedule([t('b', '09:50', '10:20'), t('a', '08:50', '09:20'), t('d', '14:00', '15:00'), t('c', '12:00', '13:00')], m('11:00'));
+    expect(p.earlier.map((x) => x.id)).toEqual(['a', 'b']);
+    expect(p.upcoming.map((x) => x.id)).toEqual(['c', 'd']);
+  });
+});

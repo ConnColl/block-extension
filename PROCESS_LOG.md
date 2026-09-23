@@ -866,3 +866,73 @@ The 10-minute unskippable ad break, following the approved plan and the Override
 - **A real, uninterrupted 10-minute run** in a visible window. Covered by the clock-shift tour, the anti-cheat check and the 10-second run.
 - **If Chrome kills the background worker mid-break** despite the pings, the port drops and the break resets. It's logged as abandoned, so the user would have to start over.
 - **The Testimonial needs completed tasks,** which step 6 creates. Until then, it only appears with sample data.
+
+---
+
+## 2026-09-23 — Step 6: Task completion, and finishing early
+
+### What I asked
+- **Step 6:** at session end, ask "Did you finish?" and mark the task complete or missed. A task that ends without an answer is marked missed.
+- **Finishing early:** during a session, a **Done** button in the popup and on the Blocked page. No friction, just a light check: "Done already? 16 of 60 minutes." then "Yes, done." Then two choices:
+  - **Start next task now:** the next task starts immediately and keeps its planned length; later tasks stay where they are.
+  - **Take the time back:** blocking ends until the next task's scheduled start, with "You earned 44 minutes."
+  - With no next task, only "Take the time back".
+- Log the completion time.
+- Note in CLAUDE.md that Done is honor-based by design: Block is a commitment device, not a lie detector.
+
+### Decisions I filled in (building straight away, as asked)
+- **The finished task's end moves to the moment it was finished,** at least 1 minute after its start. That way the next task can start right away without overlapping it. The original end is kept as `plannedEnd` on the outcome.
+- **At a session's natural end,** the task is recorded as `missed` with `pending: true`, which means not yet answered. Answering Yes turns it `completed`, with its completion time set to the task's end. A missed task can still be changed to completed later; a completed one isn't flipped back.
+- **Past tasks that never had a session** (for example, Chrome was closed) also get the question on their plan row. You may have done them without Block.
+- **Overridden tasks aren't asked about;** the override already records how they ended.
+
+### What was built
+- **`lib/completion.ts`** (pure, unit-tested):
+  - `doneSummary()`: elapsed and total minutes of the session, and the minutes earned.
+  - `nextTaskAfter()`: the next task today that isn't finished.
+  - `trimmedEnd()` and `shiftedTo()`: the next task keeps its length, capped at 11:59 PM.
+- **Outcomes** gain `pending`, `early` and `plannedEnd`.
+- **`completionLogItem`:** every Done and every answer, with time, how (`done-early` / `answered`), minutes worked out of planned, and what came next (`start-next` / `take-back`).
+- **Background:**
+  - `session/done`: marks the task completed (early), trims its end, logs it, then either moves the next task to now and starts it (tabs re-parked for the new allowlist) or ends the session (tabs restored).
+  - `task/answer`: records the Yes/No answer.
+  - On a natural end: the outcome becomes pending, then about 1.5s later, once restored tabs have loaded, the question is shown on the active web page.
+- **In-page question:** "Welcome back outty. / Did you finish “Reply to Maya”?" with **Yes, finished** / **Not this time**. The shared notice now supports two buttons. Dismissing it leaves the question pending.
+- **`DoneFlow`** (popup and Blocked page), in steps:
+  1. **Done**
+  2. "Done already? 16 of 60 minutes." with **Yes, done.** / **Not yet**
+  3. A checkmark with "Nicely done. What now?" and the two choices. Each shows what will happen: "Review deck · until 12:19 PM", or "Free until 12:19 PM" / "Free for 44 minutes".
+  4. The result. The popup keeps "You earned 44 minutes." (or "Now: Review deck, until 12:19 PM.") in a banner. The Blocked page's session-over state leads with the checkmark and "You earned 44 minutes."
+- **`FinishedQuestion`** (Blocked page after a natural end, popup, plan rows): Yes shows the checkmark and "Done. Nicely finished."; No shows "Noted. It happens." Plan rows then read "· Completed" or "· Missed".
+- **`CheckMark`** (signature moment 6): the circle settles in with the no-overshoot `spring`, then the check draws itself over `emphasized` with the `enter` easing. With reduced motion it simply fades in.
+- **Developer settings:** the completion log (the latest 10).
+- **CLAUDE.md:**
+  - MVP item 6 describes where the question is asked, finishing early and its two choices, the honor-based note ("Block is a commitment device, not a lie detector") and signature moment 6.
+  - MVP item 7 adds the Done button.
+
+### Fixes found during testing
+- **"Earlier today" was in storage order.** Tasks written unsorted (sample data, test data) listed out of time order. `partitionSchedule` now sorts, "Fill sample data" saves sorted, and there's a new test.
+- **The 80% dimming on "Earlier today" rows** washed out the question's buttons, so it's removed.
+
+### Verified in a real Chrome (headless)
+- **Done, then Take the time back** (popup, no next task):
+  - "Done already? 16 of 60 minutes."
+  - only "Take the time back · Free for 44 minutes" is offered;
+  - the result reads "You earned 44 minutes.";
+  - the session ended, the parked example.net tab was restored, and the task's end became 11:19 (planned 12:03);
+  - the outcome is `completed, early`, and the log reads `done-early 16/60 take-back`.
+- **Done, then Start next task now** (Blocked page):
+  - B ended at 11:19;
+  - C moved from 12:19–13:19 to **11:19–12:19**, keeping its hour;
+  - D stayed at 13:49;
+  - the session is now C, and the Blocked page switched to "Review deck".
+  - The log reads `done-early 16/60 start-next`.
+- **Natural end** (real alarm at 11:20):
+  - the outcome became `missed, pending`;
+  - the in-page question appeared on the active page (screenshot);
+  - **Yes, finished** turned it `completed`, and the log reads `answered`.
+- **Plan rows:** two past tasks with no answer showed "Did you finish …?". Yes gave "· Completed", and Not this time gave "· Missed".
+- **Tests:** 73 unit tests pass.
+
+### Not verified
+- **The Testimonial with real completions in a live ad break.** It's unit-tested, and it uses the same data path as sample data.
