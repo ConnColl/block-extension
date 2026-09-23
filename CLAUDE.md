@@ -39,16 +39,15 @@ The only way to end a session early, or to edit or delete the task in an active 
 
 1. **Hold to confirm.** Hold a button for 3 seconds (`deliberate` token). Releasing early cancels the override.
 2. **Emergency passes.** The user gets 3 passes per week. If one is left, holding spends it and the session ends immediately.
-3. **Confession (passes used up).** The user types a confession generated for this attempt: one line picked at random, followed by "“[task name]” can wait." (task name in quotes). The lines:
+3. **Confession (passes used up).** The user types one line, picked at random for this attempt, exactly as written. Nothing is added to it. The lines:
    - "I would like to abandon my potential please."
    - "I am voluntarily entering the scroll hole."
    - "Please return me to the content mines."
    - "I would rather consume content than become the person I said I wanted to be."
 
-   Example: `I am voluntarily entering the scroll hole. “Write the case study intro” can wait.`
    - A new line is picked at random for each attempt, and it stays the same for the whole attempt.
-   - Matching ignores capitalization, punctuation, spaces at the start and end, and repeated spaces between words. Otherwise the words must match, including the task name.
-   - The field doesn't accept paste or drag-and-drop. Typing the quotes is optional.
+   - Matching ignores capitalization, punctuation, spaces at the start and end, and repeated spaces between words. Otherwise the words must match.
+   - The field doesn't accept paste or drag-and-drop.
    - The submit button reads **"Release me"**. It stays disabled until the text matches, then turns the accent colour with a small check mark (`quick`). Enter submits.
    - During the confession and the ad break, **"Back to work"** sits in a top bar: prominent, always visible, and out of the submit path.
 4. **Unskippable "ad break."** After the confession, a fixed 10-minute ad break plays. The session only ends if the user sits through it.

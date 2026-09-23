@@ -3,7 +3,7 @@ import { browser } from 'wxt/browser';
 import { AnimatePresence, motion, useReducedMotion, type Variants } from 'motion/react';
 import { useFocus, useNow, usePassesLeft } from '@/lib/hooks';
 import { remainingMs } from '@/lib/session';
-import { PASSES_PER_WEEK, buildConfession, pickConfessionLine, type OverrideStage } from '@/lib/override';
+import { PASSES_PER_WEEK, pickConfessionLine, type OverrideStage } from '@/lib/override';
 import { send } from '@/lib/messages';
 import { formatRemaining, formatTime } from '@/lib/time';
 import { duration, durationMs, easing, transition } from '@/lib/motion';
@@ -176,7 +176,7 @@ export default function App() {
               </motion.h1>
               <motion.div variants={item} className="mt-8">
                 <Confession
-                  sentence={buildConfession(stage.line, task.name)}
+                  sentence={stage.line}
                   onConfirm={() => setStage({ kind: 'confessed' })}
                 />
               </motion.div>

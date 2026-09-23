@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import {
-  buildConfession,
   confessionMatches,
   passesLeft,
   pickConfessionLine,
@@ -40,30 +39,24 @@ describe('passes', () => {
 });
 
 describe('confession', () => {
-  const target = buildConfession('I am voluntarily entering the scroll hole.', 'Write the case study intro');
+  const target = 'I am voluntarily entering the scroll hole.';
 
-  it('builds "<line> “<task>” can wait."', () => {
-    expect(target).toBe('I am voluntarily entering the scroll hole. “Write the case study intro” can wait.');
-  });
-  it("doesn't require typing the quotes", () => {
-    expect(confessionMatches('I am voluntarily entering the scroll hole. Write the case study intro can wait.', target)).toBe(true);
-    expect(confessionMatches('I am voluntarily entering the scroll hole. "Write the case study intro" can wait.', target)).toBe(true);
-  });
   it('ignores capitalization, punctuation and extra spaces', () => {
-    expect(confessionMatches('i am voluntarily entering the scroll hole write the case study intro can wait', target)).toBe(true);
-    expect(confessionMatches('  I AM voluntarily   entering the scroll hole!!  Write the case-study intro can wait…  ', target)).toBe(true);
-    expect(confessionMatches('I AM voluntarily   entering the scroll hole!! Write the case study intro, can wait…', target)).toBe(true);
+    expect(confessionMatches('i am voluntarily entering the scroll hole', target)).toBe(true);
+    expect(confessionMatches('  I AM voluntarily   entering the scroll-hole!!  ', target)).toBe(true);
   });
-  it('still requires every word, including the task name', () => {
-    expect(confessionMatches('I am voluntarily entering the scroll hole. Write the intro can wait.', target)).toBe(false);
-    expect(confessionMatches('I am entering the scroll hole. Write the case study intro can wait.', target)).toBe(false);
+  it('still requires every word', () => {
+    expect(confessionMatches('I am entering the scroll hole.', target)).toBe(false);
+    expect(confessionMatches('I am voluntarily entering the scroll hole. Now.', target)).toBe(false);
     expect(confessionMatches('', target)).toBe(false);
   });
-  it('treats apostrophes and quotes in task names as punctuation', () => {
-    const t = buildConfession('Please return me to the content mines.', 'Review Maya’s “final” deck');
-    expect(confessionMatches("please return me to the content mines. review mayas final deck can wait", t)).toBe(true);
+  it('drops apostrophes rather than splitting words', () => {
+    expect(confessionMatches("im voluntarily entering", "I'm voluntarily entering")).toBe(true);
+    expect(confessionMatches('i’m voluntarily entering', "I'm voluntarily entering")).toBe(true);
   });
-  it('picks each line', () => {
-    expect(new Set([0, 0.3, 0.6, 0.99].map((r) => pickConfessionLine(() => r))).size).toBe(4);
+  it('picks each line, and each is typed as written', () => {
+    const picked = [0, 0.3, 0.6, 0.99].map((r) => pickConfessionLine(() => r));
+    expect(new Set(picked).size).toBe(4);
+    for (const line of picked) expect(confessionMatches(line.toLowerCase(), line)).toBe(true);
   });
 });

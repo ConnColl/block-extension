@@ -663,3 +663,21 @@ After typing the confession, I **accidentally clicked "Back to work"**. It sat r
 - **Tests:** 52 unit tests pass, including that typing the quotes is optional.
 
 **CLAUDE.md** Override design item 3 is updated: quotes, the "Release me" behaviour, and the top-bar placement.
+
+---
+
+## 2026-09-23 — Change: confession lines typed as written
+
+### What I asked
+Keep the original release sentences as they are. Don't add the task name ("“[task name]” can wait.").
+
+### What changed
+- **The confession is now just the randomly picked line,** exactly as written. For example: "Please return me to the content mines." Nothing is appended.
+- **Code:** `buildConfession()` is removed, and the override page shows `stage.line` directly.
+- **Matching** is unchanged: it ignores capitalization, punctuation and extra spaces; the words must match; paste stays disabled.
+- **CLAUDE.md** Override design item 3 is updated. The example and the task-name/quote rules are removed.
+- **Tests:** rewritten for bare lines, including that every line matches when typed in lowercase without punctuation. 50 tests pass.
+
+### Why
+- **The lines work on their own.** They're self-contained jokes, and adding "“Write the case study intro” can wait." made them longer without making them land harder.
+- **The task is still in view:** the top bar reads "Focusing on <task>", so the confession doesn't need to repeat it.

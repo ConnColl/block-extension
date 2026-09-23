@@ -54,7 +54,7 @@ export interface OverrideLogEntry {
 
 export const overrideLogItem = storage.defineItem<OverrideLogEntry[]>('local:overrideLog', { fallback: [] });
 
-/** Confession lines, one picked at random per attempt, followed by "“[task name]” can wait." */
+/** Confession lines. One is picked at random per attempt and typed exactly as written. */
 export const CONFESSION_LINES = [
   'I would like to abandon my potential please.',
   'I am voluntarily entering the scroll hole.',
@@ -64,11 +64,6 @@ export const CONFESSION_LINES = [
 
 export function pickConfessionLine(random: () => number = Math.random): string {
   return CONFESSION_LINES[Math.floor(random() * CONFESSION_LINES.length)] ?? CONFESSION_LINES[0];
-}
-
-/** "<line> “<task name>” can wait." The quotes set the task apart; typing them is optional. */
-export function buildConfession(line: string, taskName: string): string {
-  return `${line} “${taskName.trim()}” can wait.`;
 }
 
 /**
