@@ -61,7 +61,9 @@ The only way to end a session early, or to edit or delete the task in an active 
    - During the confession and the ad break, **"Back to work"** sits in a top bar: prominent, always visible, and out of the submit path.
 4. **Unskippable "ad break."** After the confession, a fixed 10-minute ad break plays. The session only ends if the user sits through it.
    - The break is a sequence of short spots, labeled like TV: **"Ad 3 of 12 · Your break begins in 7:42"**. The spot count and lengths add up to exactly 10 minutes.
-   - The spots are built only from the user's own data, never real ads. Spots with no data are skipped:
+   - **Current build (demo placeholder):** the whole break is one YouTube video (`rMLFJqtpGUQ`), embedded from youtube-nocookie.com. It's set to start muted and loop until the 10 minutes are up, with related videos, controls and click-through off, and Block's own **Pause/Play** and **Sound on/off** buttons. With reduced motion it starts paused. The header reads "Ad break · Your break begins in 9:12". If the video can't load, the break shows **The Pitch** instead.
+   - **Finding (2026-09-23):** YouTube refuses embeds from extension pages (Error 153, because a `chrome-extension://` page has no normal web origin), so today the break always falls back to The Pitch. The same embed plays fine from a normal web page. Next step, to decide: host a small embed page on the portfolio site (a real origin) and load that in the ad break, or keep the Pitch fallback. Block does **not** rewrite the referrer to get around this.
+   - **Next iteration, the spot lineup** (built and unit-tested in `components/AdSpots.tsx` and `lib/adbreak.ts`, but not used yet). The spots are built only from the user's own data, never real ads. Spots with no data are skipped:
      - **The Pitch:** the task and its why.
      - **The Countdown:** the live time left in the block.
      - **The Testimonial:** tasks completed this week, styled as reviews ("★★★★★ '<task>. Done.' — Morning You · Tuesday"). It's skipped when there are no completions; sample data is always labeled "Sample data".
@@ -93,6 +95,7 @@ The ad break is ad inventory, but Block protects attention, the antithesis of ad
 - **Logins that pass through another domain** are blocked unless that domain is allowed. For example, a Google login goes through `accounts.google.com`.
 - **Content embedded inside an allowed site** (iframes) isn't blocked. Only full page loads are.
 - **No notice on Chrome's own pages.** Extensions can't draw on `chrome://` pages, including the new tab page. On those pages the tab limit still closes the extra tab, but no notice appears. The same goes for web pages that were already open before Block was installed or reloaded, until they're refreshed.
+- **The ad-break video comes from YouTube's servers** (youtube-nocookie avoids tracking cookies until the video plays, but YouTube still receives the request). YouTube also refuses embeds from extension pages (Error 153), so for now the break shows The Pitch. See Override design.
 - **Install warning:** redirecting pages needs host access to all sites, so Chrome warns "Read and change all your data on all websites".
 
 ## Out of scope (roadmap only — do not build)

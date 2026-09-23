@@ -1001,3 +1001,48 @@ There should be a way to select Done in the Morning Plan view, not only by openi
 - **Result:** "You earned 49 minutes." The session ended, and the task's end moved from 12:59 to 12:09, with the outcome `completed, early, plannedEnd 12:59`.
 - **Why 49, not 50:** the test's session started 37 seconds into a minute, so the block was 59 minutes, not 60.
 - **Tests:** 74 unit tests pass.
+
+---
+
+## 2026-09-23 — Scope cut: the ad break becomes one video (and YouTube says no)
+
+### What I asked
+- **Crunch-time scope change:** for now, the whole ad break is one YouTube video (https://www.youtube.com/watch?v=rMLFJqtpGUQ).
+- **Keep the ad frame:** the "AD" badge, a header countdown for the full 10 minutes, the disabled skip box, "Sponsored by Morning You", and "Back to work" always visible.
+- **The embed:** youtube-nocookie.com, related videos off, muted autoplay with a sound-on button, looping until the 10 minutes are up.
+- **Fallback:** The Pitch if the video fails to load.
+- **Keep the spot code** for later, unused. Note in CLAUDE.md that the spot lineup is the next iteration.
+- **Keep the rules:** leaving resets the break, the background confirms the full time, and everything is logged.
+- **Decided after the plan:** drop the ad count from the header, and start paused with reduced motion. **If YouTube refuses the embed from the extension page, don't modify the referrer.** Tell me, and we'll either host a small embed page on my portfolio site or rely on the Pitch fallback.
+
+### What was built
+- **`components/VideoAd.tsx`:** an iframe of `youtube-nocookie.com/embed/rMLFJqtpGUQ` with:
+  - `autoplay=1` (or `0` with reduced motion), `mute=1`, and `loop=1` plus `playlist=<id>` so a single video loops;
+  - `rel=0`, `controls=0`, `disablekb=1`, `fs=0`, `iv_load_policy=3`, `enablejsapi=1`;
+  - a transparent layer over the video, so it can't be clicked through to YouTube, paused or skipped.
+  - **Talking to the player:** it uses YouTube's standard embed messaging (`listening` / `command`), so no remote script runs in the extension page.
+  - **Controls:** Block's own **Pause/Play** (for WCAG 2.2.2) and **Sound on/off** buttons.
+  - **Fallback:** `onError`, or no "ready" signal within 8s, falls back to The Pitch.
+- **`AdBreak`:**
+  - The header reads "Ad break · Your break begins in m:ss".
+  - The spot sequence is replaced by the video, with The Pitch as the fallback.
+  - The frame, skip box, sponsor line, port, timing, anti-cheat check, reset-on-leave, outlasted handling and logging are unchanged.
+  - The spot code (`AdSpots`, `planAdBreak`, `spotAt`) stays in the repo with its tests, unused.
+- **CLAUDE.md:**
+  - The Override design now describes the current video placeholder, the Error 153 finding, and the spot lineup as the next iteration.
+  - Known limitations adds that the video is served by YouTube, and the Error 153 finding.
+
+### Finding: YouTube refuses the embed from an extension page
+- **In a real Chrome,** the player loaded, then reported `{"event":"onError","info":153}`. That's YouTube's error for an embed without a valid web origin; an extension page's origin is `chrome-extension://…`.
+- **The fallback worked as designed:** the break showed The Pitch ("Now showing · Buy anniversary gift · “Ten years on Saturday”"), and the countdown, frame, skip box and top bar were unaffected. The screenshot was reviewed.
+- **Control check:** the same embed URL on an ordinary `http://localhost` page reported `onReady` and `infoDelivery` with **no error**. So the video is embeddable, and a real origin such as a portfolio page would work.
+- **Per my instruction, the referrer was not modified.** Decision pending: host an embed page on the portfolio site and load that in the ad break, or keep the Pitch fallback for now.
+
+### Regression checks (real Chrome)
+- **The header** reads "Ad break · Your break begins in 9:59".
+- **Reloading mid-break** returns to "End this session early?" and logs `abandoned@ad-break`.
+- **The 10-second developer break** shows "Welcome back outty…", ends the session, and logs `ended@ad-break`.
+- **Tests:** 74 unit tests pass, and the type check and build are clean.
+
+### Not verified
+- **The Sound and Pause buttons against a live player.** They're disabled until the player is ready, and the player never became ready from the extension page. They'll need a check once the embed is hosted on a real origin.
