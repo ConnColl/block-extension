@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { validateDraft, type Task, type TaskDraft } from '@/lib/tasks';
+import { WHY_MAX_LENGTH, validateDraft, type Task, type TaskDraft } from '@/lib/tasks';
 import { transition } from '@/lib/motion';
 import { SitesInput, commitSiteText } from './SitesInput';
 
@@ -39,6 +39,7 @@ function FieldError({ id, message }: { id: string; message?: string }) {
 
 export function TaskForm({ idPrefix, initial, others, submitLabel, onSubmit, onCancel, autoFocus }: Props) {
   const [name, setName] = useState(initial.name);
+  const [why, setWhy] = useState(initial.why ?? '');
   const [start, setStart] = useState(initial.start);
   const [end, setEnd] = useState(initial.end);
   const [sites, setSites] = useState(initial.allowedSites);
@@ -49,7 +50,7 @@ export function TaskForm({ idPrefix, initial, others, submitLabel, onSubmit, onC
   const [busy, setBusy] = useState(false);
 
   const id = (field: string) => `${idPrefix}-${field}`;
-  const errors = attempted ? validateDraft({ name, start, end, allowedSites: sites }, others) : {};
+  const errors = attempted ? validateDraft({ name, why, start, end, allowedSites: sites }, others) : {};
   const sitesMessage = siteEntryError ?? errors.sites;
 
   async function handleSubmit(e: FormEvent) {
@@ -70,7 +71,7 @@ export function TaskForm({ idPrefix, initial, others, submitLabel, onSubmit, onC
       setSiteText('');
     }
 
-    const draft: TaskDraft = { name, start, end, allowedSites };
+    const draft: TaskDraft = { name, why, start, end, allowedSites };
     const found = validateDraft(draft, others);
     setAttempted(true);
     setSubmitError(null);
@@ -119,6 +120,26 @@ export function TaskForm({ idPrefix, initial, others, submitLabel, onSubmit, onC
           className={inputClass}
         />
         <FieldError id={id('name-error')} message={errors.name} />
+      </div>
+
+      <div>
+        <label htmlFor={id('why')} className={labelClass}>
+          Why <span className="font-normal text-muted">(optional)</span>
+        </label>
+        <input
+          id={id('why')}
+          type="text"
+          autoComplete="off"
+          maxLength={WHY_MAX_LENGTH}
+          placeholder="So the case study is ready to send on Friday"
+          value={why}
+          onChange={(e) => setWhy(e.target.value)}
+          aria-describedby={id('why-hint')}
+          className={inputClass}
+        />
+        <p id={id('why-hint')} className="mt-1.5 text-sm text-muted">
+          One line, for future you.
+        </p>
       </div>
 
       <fieldset>

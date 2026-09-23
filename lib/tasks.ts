@@ -1,8 +1,17 @@
 import { storage } from 'wxt/utils/storage';
+import type { ActiveSession } from './session';
+import { dateKey, toMinutes } from './time';
+
+export type { ActiveSession } from './session';
+export { toMinutes } from './time';
 
 export interface Task {
   id: string;
+  /** Local calendar day this task belongs to, "YYYY-MM-DD". */
+  date: string;
   name: string;
+  /** Optional one line: what this task is for. */
+  why?: string;
   /** "HH:MM", 24-hour, local time. */
   start: string;
   /** "HH:MM", 24-hour, local time. Always after `start` (no crossing midnight). */
@@ -12,24 +21,24 @@ export interface Task {
   createdAt: number;
 }
 
-/**
- * A running focus session. Sessions reference tasks by id and live in their own
- * storage key, so a task never has to be rewritten when a session starts or ends.
- * Step 1 never writes this; it exists so the edit/delete lock has one source of truth.
- */
-export interface ActiveSession {
-  taskId: string;
-  startedAt: number;
-  endsAt: number;
-}
+export const tasksItem = storage.defineItem<Task[]>('local:tasks', {
+  fallback: [],
+  version: 2,
+  migrations: {
+    // v1 tasks had no date. They were all planned as "today", so they become today's.
+    2: (tasks: Omit<Task, 'date'>[]) => tasks.map((t) => ({ ...t, date: dateKey() })),
+  },
+});
 
-export const tasksItem = storage.defineItem<Task[]>('local:tasks', { fallback: [] });
 export const activeSessionItem = storage.defineItem<ActiveSession | null>('local:activeSession', {
   fallback: null,
 });
 
 /** How long the "Task deleted — Undo" notice stays up. Not a motion token: it's a reading window. */
 export const UNDO_WINDOW_MS = 5000;
+
+/** Max length of the one-line "why". */
+export const WHY_MAX_LENGTH = 120;
 
 export class TaskLockedError extends Error {
   constructor() {
@@ -52,18 +61,18 @@ async function assertUnlocked(taskId: string) {
   if (isTaskLocked(taskId, await activeSessionItem.getValue())) throw new TaskLockedError();
 }
 
-export function toMinutes(hhmm: string): number {
-  const [h = 0, m = 0] = hhmm.split(':').map(Number);
-  return h * 60 + m;
-}
-
 export function sortTasks(tasks: Task[]): Task[] {
-  return [...tasks].sort((a, b) => toMinutes(a.start) - toMinutes(b.start));
+  return [...tasks].sort((a, b) => a.date.localeCompare(b.date) || toMinutes(a.start) - toMinutes(b.start));
 }
 
-export type TaskDraft = Pick<Task, 'name' | 'start' | 'end' | 'allowedSites'>;
+export function tasksOn(tasks: Task[], date: string): Task[] {
+  return tasks.filter((t) => t.date === date);
+}
+
+export type TaskDraft = Pick<Task, 'name' | 'start' | 'end' | 'allowedSites' | 'why'>;
 export type DraftErrors = Partial<Record<'name' | 'time' | 'sites', string>>;
 
+/** `others` should be the other tasks on the same day. */
 export function validateDraft(draft: TaskDraft, others: Task[]): DraftErrors {
   const errors: DraftErrors = {};
   if (!draft.name.trim()) errors.name = 'Give this task a name.';
@@ -87,15 +96,21 @@ export function findOverlap(slot: Pick<Task, 'start' | 'end'>, others: Task[]): 
   return others.find((t) => s < toMinutes(t.end) && toMinutes(t.start) < e);
 }
 
+function clean(draft: TaskDraft): TaskDraft {
+  const why = draft.why?.trim().slice(0, WHY_MAX_LENGTH);
+  return { ...draft, name: draft.name.trim(), why: why || undefined };
+}
+
+/** Adds a task to today's plan. */
 export async function addTask(draft: TaskDraft): Promise<Task> {
   const task: Task = {
-    ...draft,
-    name: draft.name.trim(),
+    ...clean(draft),
     id: crypto.randomUUID(),
+    date: dateKey(),
     createdAt: Date.now(),
   };
   const tasks = await tasksItem.getValue();
-  const clash = findOverlap(task, tasks);
+  const clash = findOverlap(task, tasksOn(tasks, task.date));
   if (clash) throw new TaskOverlapError(clash);
   await tasksItem.setValue(sortTasks([...tasks, task]));
   return task;
@@ -104,11 +119,11 @@ export async function addTask(draft: TaskDraft): Promise<Task> {
 export async function updateTask(id: string, draft: TaskDraft): Promise<void> {
   await assertUnlocked(id);
   const tasks = await tasksItem.getValue();
-  const clash = findOverlap(draft, tasks.filter((t) => t.id !== id));
+  const current = tasks.find((t) => t.id === id);
+  if (!current) return;
+  const clash = findOverlap(draft, tasksOn(tasks, current.date).filter((t) => t.id !== id));
   if (clash) throw new TaskOverlapError(clash);
-  await tasksItem.setValue(
-    sortTasks(tasks.map((t) => (t.id === id ? { ...t, ...draft, name: draft.name.trim() } : t))),
-  );
+  await tasksItem.setValue(sortTasks(tasks.map((t) => (t.id === id ? { ...t, ...clean(draft) } : t))));
 }
 
 export async function deleteTask(id: string): Promise<Task | undefined> {
@@ -126,7 +141,7 @@ export async function deleteTask(id: string): Promise<Task | undefined> {
 export async function restoreTask(task: Task): Promise<Task | undefined> {
   const tasks = await tasksItem.getValue();
   if (tasks.some((t) => t.id === task.id)) return undefined;
-  const clash = findOverlap(task, tasks);
+  const clash = findOverlap(task, tasksOn(tasks, task.date));
   if (clash) return clash;
   await tasksItem.setValue(sortTasks([...tasks, task]));
   return undefined;

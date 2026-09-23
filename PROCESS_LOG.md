@@ -178,3 +178,95 @@ Step-1 tasks have no date, so a 9:00 task would start **every day** until delete
 
 ### To resume
 Reply "go" with A or B (or changes) and step 2 gets built from this plan.
+
+---
+
+## 2026-09-23 — Plan change: override becomes a 10-minute "ad break"
+
+### What I asked
+- Keep the 3-second hold, the 3 emergency passes per week and the confession sentence.
+- Replace the 60/120/180s escalation with a fixed 10-minute unskippable "ad break". It's a sequence of short spots:
+  - the task and its why;
+  - time remaining in the block;
+  - tasks completed this week;
+  - a one-minute breathing spot.
+- The spots are labeled like TV: "Ad 3 of 12 · Your break begins in 7:42".
+- "Back to work" is always available, and leaving the page resets the countdown.
+- If the session ends during the break: "Good news: you made it. Your session is over."
+- A developer setting shortens the break to 10 seconds for testing.
+- Plan only; don't build yet.
+
+### What changed in CLAUDE.md
+The Override design section is rewritten. Details I filled in:
+- **Tasks completed this week:** this spot uses real data only, and it's left out until task completion (step 6) exists. This follows the honesty rules.
+- **A session that runs out during the break** ends normally, not as an override, and is logged as `outlasted`.
+- **The escalation level no longer exists**, so it's removed from logging and from the weekly reset.
+- **Reduced motion:** the breathing spot uses text cues instead of an animated shape.
+
+---
+
+## 2026-09-23 — Step 2: Focus sessions and blocking
+
+### What I asked
+Build step 2 from the plan logged on 2026-09-22, with two changes:
+- **Option A:** tasks get a date.
+- **The optional "why" field** is included in this step.
+
+### What was built
+- **Dated tasks.** Each task has a `date` ("YYYY-MM-DD", local).
+  - New tasks belong to today, and the plan page shows only today's tasks.
+  - Only today's tasks can start, and overlap checks compare tasks on the same day only.
+  - A storage migration (tasks v1 → v2) gives existing dateless tasks today's date.
+- **"Why" field.** An optional one line of up to 120 characters, with the hint "One line, for future you." It shows under the task name on the plan page, in the popup and on the Blocked page.
+- **Blocking** (`lib/session.ts` → `buildBlockRule`). One dynamic declarativeNetRequest rule:
+  - It matches `main_frame` requests for `^https?://.*`.
+  - It redirects them via `regexSubstitution` to `blocked.html#<original URL>`.
+  - The allowed sites go in `excludedRequestDomains`, which covers subdomains automatically.
+  - Because the original URL rides along, the Blocked page can offer "Continue to …" once the session ends.
+- **Background worker** (`entrypoints/background.ts`). It's the only code that writes the session, and all its work runs one operation at a time.
+  - **Scheduled start:** an alarm per task that starts later today.
+  - **End:** an alarm at `endsAt`.
+  - **Manual start:** by message from the plan page.
+  - **Missed-start catch-up:** runs on Chrome startup and on install/reload.
+  - **Reconcile:** each time the worker wakes, it ends expired sessions, removes stale rules and re-asserts the rule for a live session.
+  - **Tab sweep:** tabs already open on non-allowed sites are sent to the Blocked page when a session starts.
+- **Plan page:**
+  - The active task shows "In session · N min left" and a "Locked" chip. Its Edit and Delete buttons are removed, and the storage layer also refuses the change.
+  - Other tasks show **Start now** when no session is running and the task hasn't ended.
+- **Popup:** during a session, an "In focus" view with the task, the why, a live time remaining, the end time and the allowed sites. Otherwise, the next task and its start time.
+- **Blocked page (placeholder):**
+  - During a session it shows "<site> isn't part of this task.", the task, the why, the time remaining and the allowed sites as links.
+  - After the session it shows "Your session is over." with a Continue link.
+- **Permissions:** `storage`, `alarms`, `declarativeNetRequest`, host `<all_urls>`, and `blocked.html` as web-accessible.
+- **Tests:** Vitest with WXT's fake browser. `npm test` runs 18 tests.
+  - The "which task is due now" logic, including the exact start and end minute, other days, midnight and no tasks.
+  - `canStart`, session expiry, the domain allow-matching (look-alike domains are rejected), the tab-sweep filter, the rule shape and the time formatting.
+  - The lock and unlock at the storage layer, the overlap guard and the v1→v2 migration.
+
+### Verified in a real Chrome (Chrome for Testing via Puppeteer, headless)
+- **Manual start works.** A second start while one is running is refused: "A focus session is already running."
+- **The tab sweep works:** an already-open `example.net` tab moved to the Blocked page.
+- **Redirecting works:**
+  - `https://example.com/some/path?q=1` → `blocked.html#https://example.com/some/path?q=1`
+  - `www.example.org` and `example.org` (the allowed site) load normally.
+- **The Blocked page, popup and plan page** all show the task, the why and the time remaining. The active task has no Edit, Delete or Start buttons.
+- **End alarm plus scheduled start on the same minute:**
+  - Task 1 ended at 09:31, and task 2's start alarm fired at 09:31.
+  - The session switched to task 2 (`source: scheduled`), and the allowed site switched with it: `example.com` now loads and `example.org` is blocked.
+- **Forced expiry:** the session cleared and no dynamic rules were left. `example.net` loads again, and the Blocked page switches to "Your session is over" with a working Continue link.
+
+The e2e scripts live in the session scratchpad, not the repo, because they need a ~150 MB Chrome download.
+
+### What went wrong
+- **Headless e2e artifact:** a Blocked page in a *hidden* tab kept showing the old session after it ended.
+  - Cause: hidden tabs don't run animation frames, so the Motion exit animation never finished.
+  - Once the tab was brought to the front, it updated correctly. There's no real-world impact, because you see the page as soon as you switch to it.
+- **Refactor:** `toMinutes` and `ActiveSession` moved out of `lib/tasks.ts`, into `lib/time.ts` and `lib/session.ts`, so the session logic has no browser dependencies and can be unit-tested. `tasks.ts` re-exports both.
+
+### Known limitations (noted, not solved)
+- **Logins that bounce through another domain** are blocked unless that domain is allowed. For example, a Google login goes through `accounts.google.com`, so you'd allow `google.com`.
+- **Iframes and embedded content** inside an allowed site aren't blocked. Only full page loads are.
+- **The tab sweep replaces the page,** so unsaved work in a swept tab is lost.
+- **Install warning:** `<all_urls>` makes Chrome show "Read and change all your data on all websites". Redirecting instead of just blocking requires it.
+- **No way to end a session early yet.** That's the override (step 5). Until then, a running session can only end at its end time.
+- **Past tasks aren't marked** complete or missed yet (step 6). They simply lose their Start button.

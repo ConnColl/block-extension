@@ -9,7 +9,10 @@ export default defineConfig({
   manifest: {
     name: 'Block',
     description: 'Plan your focus. Only the sites your task needs stay open.',
-    permissions: ['storage'],
+    permissions: ['storage', 'alarms', 'declarativeNetRequest'],
+    // Redirecting a page (rather than just blocking it) needs host access.
+    host_permissions: ['<all_urls>'],
+    web_accessible_resources: [{ resources: ['blocked.html'], matches: ['<all_urls>'] }],
     action: { default_title: 'Block' },
   },
 });

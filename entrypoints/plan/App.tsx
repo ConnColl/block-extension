@@ -1,19 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import {
-  activeSessionItem,
   addTask,
   deleteTask,
   isTaskLocked,
   restoreTask,
-  tasksItem,
-  toMinutes,
+  tasksOn,
   updateTask,
-  type ActiveSession,
   type Task,
   type TaskDraft,
 } from '@/lib/tasks';
-import { formatToday, fromMinutes } from '@/lib/time';
+import { canStart, remainingMs } from '@/lib/session';
+import { useFocus, useNow } from '@/lib/hooks';
+import { send } from '@/lib/messages';
+import { dateKey, formatRemaining, formatToday, fromMinutes, toMinutes } from '@/lib/time';
 import { transition } from '@/lib/motion';
 import { TaskForm } from '@/components/TaskForm';
 import { TaskRow } from '@/components/TaskRow';
@@ -25,30 +25,21 @@ function suggestDraft(tasks: Task[]): TaskDraft {
   const nextHalfHour = Math.ceil((now.getHours() * 60 + now.getMinutes()) / 30) * 30;
   const lastEnd = tasks.reduce((max, t) => Math.max(max, toMinutes(t.end)), 0);
   const start = Math.max(lastEnd, nextHalfHour);
-  return { name: '', start: fromMinutes(start), end: fromMinutes(start + 60), allowedSites: [] };
+  return { name: '', why: '', start: fromMinutes(start), end: fromMinutes(start + 60), allowedSites: [] };
 }
 
 export default function App() {
   const reduce = useReducedMotion();
-  const [tasks, setTasks] = useState<Task[] | null>(null);
-  const [session, setSession] = useState<ActiveSession | null>(null);
+  const now = useNow();
+  const { tasks: allTasks, session, loaded } = useFocus(now);
+  const today = dateKey(new Date(now));
+  const tasks = loaded && allTasks ? tasksOn(allTasks, today) : null;
   const [editingId, setEditingId] = useState<string | null>(null);
   const [settlingId, setSettlingId] = useState<string | null>(null);
   const [formKey, setFormKey] = useState(0);
   const [notice, setNotice] = useState<UndoState | null>(null);
   const lastDeleted = useRef<Task | null>(null);
   const listHeading = useRef<HTMLHeadingElement>(null);
-
-  useEffect(() => {
-    tasksItem.getValue().then(setTasks);
-    activeSessionItem.getValue().then(setSession);
-    const unwatchTasks = tasksItem.watch(setTasks);
-    const unwatchSession = activeSessionItem.watch(setSession);
-    return () => {
-      unwatchTasks();
-      unwatchSession();
-    };
-  }, []);
 
   // A task that becomes locked while being edited leaves edit mode.
   useEffect(() => {
@@ -97,6 +88,11 @@ export default function App() {
     setSettlingId(task.id);
     setNotice(null);
   }, []);
+
+  async function handleStart(task: Task) {
+    const res = await send({ type: 'session/start', taskId: task.id });
+    if (!res.ok) showNotice(res.error, false);
+  }
 
   const handleDismiss = useCallback(() => {
     lastDeleted.current = null;
@@ -183,6 +179,11 @@ export default function App() {
                     <TaskRow
                       task={task}
                       locked={isTaskLocked(task.id, session)}
+                      remaining={
+                        session && isTaskLocked(task.id, session) ? formatRemaining(remainingMs(session, now)) : undefined
+                      }
+                      startable={!session && canStart(task, now)}
+                      onStart={() => handleStart(task)}
                       settling={settlingId === task.id}
                       onEdit={() => {
                         setSettlingId(null);

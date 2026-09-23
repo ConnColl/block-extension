@@ -26,3 +26,9 @@ export function normalizeDomain(input: string): string | null {
 
   return host;
 }
+
+/** True if `host` is an allowed domain or a subdomain of one. */
+export function isAllowedHost(host: string, allowedSites: string[]): boolean {
+  const h = host.toLowerCase().replace(/\.$/, '');
+  return allowedSites.some((site) => h === site || h.endsWith(`.${site}`));
+}

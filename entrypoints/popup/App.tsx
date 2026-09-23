@@ -1,7 +1,9 @@
-import { useEffect, useState } from 'react';
 import { browser } from 'wxt/browser';
-import { motion, useReducedMotion } from 'motion/react';
-import { tasksItem, type Task } from '@/lib/tasks';
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
+import { tasksOn } from '@/lib/tasks';
+import { remainingMs, taskStartMs } from '@/lib/session';
+import { useFocus, useNow } from '@/lib/hooks';
+import { dateKey, formatRemaining, formatTime } from '@/lib/time';
 import { transition } from '@/lib/motion';
 
 const PLAN_URL = browser.runtime.getURL('/plan.html');
@@ -27,38 +29,73 @@ async function openPlan() {
 }
 
 export default function App() {
-  const [tasks, setTasks] = useState<Task[] | null>(null);
   const reduce = useReducedMotion();
+  const now = useNow();
+  const { tasks, session, task, loaded } = useFocus(now);
 
-  useEffect(() => {
-    tasksItem.getValue().then(setTasks);
-    return tasksItem.watch(setTasks);
-  }, []);
+  const today = tasks ? tasksOn(tasks, dateKey(new Date(now))) : [];
+  const next = today.find((t) => taskStartMs(t) > now);
 
-  const count = tasks?.length ?? 0;
+  const enter = { opacity: 0, y: reduce ? 0 : 4 };
 
   return (
-    <motion.main
-      className="w-72 bg-bg p-5 font-sans text-ink"
-      initial={{ opacity: 0, y: reduce ? 0 : 4 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={transition.enter}
-    >
-      <h1 className="text-sm font-semibold tracking-tight">Block</h1>
-      <p className="mt-3 text-sm text-muted">
-        {tasks === null
-          ? ' '
-          : count === 0
-            ? 'No tasks planned yet.'
-            : `${count} ${count === 1 ? 'task' : 'tasks'} planned.`}
-      </p>
+    <main className="w-80 bg-bg p-5 font-sans text-ink">
+      <AnimatePresence mode="wait" initial={false}>
+        {!loaded ? null : session && task ? (
+          <motion.section
+            key="focus"
+            aria-label="Focus session"
+            initial={enter}
+            animate={{ opacity: 1, y: 0, transition: transition.enter }}
+            exit={{ opacity: 0, transition: transition.exit }}
+          >
+            <p className="text-xs font-medium tracking-wide text-accent uppercase">In focus</p>
+            <h1 className="mt-2 text-lg leading-snug font-semibold tracking-tight">{task.name}</h1>
+            {task.why && <p className="mt-1 text-sm text-muted">{task.why}</p>}
+            <p className="mt-4 text-2xl font-semibold tracking-tight tabular-nums">
+              {formatRemaining(remainingMs(session, now))}
+            </p>
+            <p className="mt-1 text-sm text-muted">Until {formatTime(task.end)}</p>
+            <h2 className="mt-5 text-xs font-medium text-muted">Open during this task</h2>
+            <ul className="mt-1.5 flex flex-wrap gap-1.5">
+              {task.allowedSites.map((site) => (
+                <li key={site} className="rounded-full bg-accent-soft px-2.5 py-0.5 text-sm">
+                  {site}
+                </li>
+              ))}
+            </ul>
+          </motion.section>
+        ) : (
+          <motion.section
+            key="idle"
+            aria-label="Today"
+            initial={enter}
+            animate={{ opacity: 1, y: 0, transition: transition.enter }}
+            exit={{ opacity: 0, transition: transition.exit }}
+          >
+            <h1 className="text-sm font-semibold tracking-tight">Block</h1>
+            <p className="mt-3 text-sm text-muted">
+              {next ? (
+                <>
+                  Next: <span className="font-medium text-ink">{next.name}</span> at {formatTime(next.start)}
+                </>
+              ) : today.length ? (
+                'Nothing else planned for today.'
+              ) : (
+                'No tasks planned for today.'
+              )}
+            </p>
+          </motion.section>
+        )}
+      </AnimatePresence>
+
       <button
         type="button"
         onClick={openPlan}
-        className="mt-4 w-full rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-accent-ink transition-opacity hover:opacity-90"
+        className="mt-5 w-full rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-accent-ink transition-opacity hover:opacity-90"
       >
         Open plan
       </button>
-    </motion.main>
+    </main>
   );
 }
