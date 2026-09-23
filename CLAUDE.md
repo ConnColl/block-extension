@@ -36,7 +36,7 @@ The only way to end a session early, or to edit or delete the task in an active 
 
 1. **Hold to confirm.** Hold a button for 3 seconds (`deliberate` token). Releasing early cancels the override.
 2. **Emergency passes.** The user gets 3 passes per week. If one is left, holding spends it and the session ends immediately.
-3. **Confession (passes used up).** The user must type this sentence exactly, generated from the task: `I am choosing distraction over [task name]`. The field doesn't accept paste. Matching is exact, including the task name.
+3. **Confession (passes used up).** The user must type this sentence exactly, generated from the task: `I am choosing distraction over [task name]`. The field doesn't accept paste. Matching ignores capitalization, spaces at the start and end, and repeated spaces between words. Otherwise the words must match exactly, including the task name.
 4. **Unskippable "ad" countdown.** After the confession, a countdown plays. It shows the task name, the task's "why" (if one was set) and the time left in the session.
    - Length escalates across the week: the first confession-override is 60s, the second is 120s, and every one after that is 180s until the weekly reset.
    - **"Back to work"** is always available. It cancels the override and returns to the task.
@@ -65,9 +65,10 @@ Easings:
 ## Motion principles for Block
 1. **Calm over clever.** A focus tool never competes for attention.
 2. **Redirect, don't punish.** Blocking feels like a door gently closing, not an alarm.
-3. **Friction is a feature.** The override is the one place motion is deliberately slow. The user should feel the time pass.
-4. **Entering focus should feel like a shift.** The session start is the signature moment: noticeable, quiet, and confident.
-5. **Closure without guilt.** Completing a task feels good; a missed task is noted neutrally.
+3. **Friction, not punishment.** The Blocked page stays gentle. All friction lives in the override, because the user set those rules in advance. The confession is private and states a fact in the user's own words; it never insults.
+4. **Friction is a feature.** The override is the one place motion is deliberately slow. The user should feel the time pass.
+5. **Entering focus should feel like a shift.** The session start is the signature moment: noticeable, quiet, and confident.
+6. **Closure without guilt.** Completing a task feels good; a missed task is noted neutrally.
 
 ## The six signature moments (priority for polish)
 1. Adding a task — time block settles into the schedule

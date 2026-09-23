@@ -101,3 +101,22 @@ This is a plan change only. `CLAUDE.md` is updated, and there's no code yet.
 ### Effect on existing code
 - `Task` will gain an optional `why?: string`. It's optional, so tasks already saved don't need to be migrated.
 - Step 1's lock design already assumes the override is the only way out, so no change is needed there.
+
+---
+
+## 2026-09-22 — Plan change: friction principle + forgiving confession match
+
+### What I asked
+- Resolve the tension noted in the previous entry by adding this principle to CLAUDE.md: "Friction, not punishment. The Blocked page stays gentle. All friction lives in the override, because the user set those rules in advance. The confession is private and states a fact in the user's own words; it never insults."
+- Make the confession match forgiving of capitalization and extra spaces, but keep paste disabled.
+
+### What changed in CLAUDE.md
+- The new principle is #3 under "Motion principles for Block", placed right after "Redirect, don't punish". The principles after it are renumbered.
+- The confession match now ignores capitalization, spaces at the start and end, and repeated spaces between words. Otherwise the words must match, including the task name. Paste is still blocked.
+
+### Why
+- The friction should come from the effort of typing the sentence out yourself, not from tripping over a capital letter or a double space.
+- A retype forced by formatting feels like a gotcha, which is punishment, not friction.
+- Keeping paste blocked keeps the part that matters: you have to write the sentence yourself.
+
+This supersedes the "task name must match exactly" detail in the previous entry. There's no code change yet.
