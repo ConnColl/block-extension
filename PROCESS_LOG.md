@@ -120,3 +120,61 @@ This is a plan change only. `CLAUDE.md` is updated, and there's no code yet.
 - Keeping paste blocked keeps the part that matters: you have to write the sentence yourself.
 
 This supersedes the "task name must match exactly" detail in the previous entry. There's no code change yet.
+
+---
+
+## 2026-09-22 — Step 2 planned, awaiting approval (paused for the night)
+
+### What I asked
+Build step 2: focus sessions and blocking.
+- A session starts at a task's start time or manually, and ends at the task's end time.
+- During a session, main-frame navigations to non-allowed domains redirect to a placeholder Blocked page via declarativeNetRequest dynamic rules. Subdomains of allowed domains are allowed.
+- Lock the active task from editing and deleting.
+- The popup shows the current task and time remaining.
+- Plan first, and a test checklist when done.
+
+### Proposed plan (not approved yet — nothing built)
+
+**Permissions**
+- Add `declarativeNetRequest`, `alarms`, and host permission `<all_urls>`.
+- Redirecting a page requires host access to that site. Without it, the only option is a plain block, which shows Chrome's error page instead of ours.
+- Cost: Chrome shows a "Read and change all your data on all websites" warning at install.
+
+**Blocking**
+- One dynamic rule while a session is active: `main_frame` + `urlFilter: '|http'`, redirecting to `extensionPath: '/blocked.html'`.
+- The allowed sites go in `excludedRequestDomains`, which covers subdomains automatically.
+- `blocked.html` must be web-accessible so the redirect can load it.
+- The rule is removed when the session ends.
+
+**Background** (`entrypoints/background.ts`)
+- It's the only thing that writes the session. The plan page and popup ask it by message.
+- **Scheduled start:** an alarm for each of today's tasks at its start time, rescheduled whenever tasks change.
+- **End:** an alarm at `endsAt` clears the session and removes the rule.
+- **Manual start ("Start now"):** only when no session is running and the task hasn't ended. The session still ends at the task's end time.
+- **Missed start:** if Chrome was closed at a task's start time and opens during that task, the session starts then (on `runtime.onStartup`). A task added or edited while its time slot is already running doesn't start by itself.
+- **Safety check on startup and install:** if `endsAt` has passed, clear the session and remove the rule, so blocking can never outlive a session.
+- **Tabs already open when a session starts:** any tab on a non-allowed http(s) site is sent to the Blocked page. The rule only catches new page loads, so without this an already-open site would stay usable. Trade-off: unsaved work in those tabs is lost.
+
+**Data and logic**
+- `activeSession` becomes `{ taskId, startedAt, endsAt, source: 'scheduled' | 'manual' }`.
+- `lib/session.ts` holds the pure logic: which task is due now, today's timestamp for an "HH:MM" time, the rule builder, and time remaining.
+
+**Pages**
+- **Plan page:** the active task shows "In session · N min left". The other tasks get **Start now**.
+- **Popup:** during a session, the current task, a live time remaining and the allowed sites. Otherwise, the next task. Open plan stays.
+- **Blocked page (placeholder):** task name, time remaining, and the allowed sites as links. If no session is running, it says so. Polish is step 3.
+- **Motion:** simple fades using the tokens only. "Entering focus" polish comes later.
+
+**Checks:** type check, build, and Node tests of the "which task is due now" logic and the rule builder against edge cases (midnight, exact start and end minute, no tasks).
+
+**Known limitations to note, not solve**
+- Logins that bounce through another domain (e.g. `accounts.google.com`) need that domain allowed.
+- Content embedded inside an allowed site (iframes) isn't blocked.
+
+### Open decision (answer before building)
+Step-1 tasks have no date, so a 9:00 task would start **every day** until deleted.
+- **A (recommended):** add a `date` to tasks. New tasks belong to today, existing ones become today's on first load, and the plan page shows and schedules only today's tasks.
+- **B:** keep tasks repeating daily and revisit at step 6.
+
+### To resume
+Reply "go" with A or B (or changes) and step 2 gets built from this plan.
