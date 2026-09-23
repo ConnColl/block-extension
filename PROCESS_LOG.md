@@ -65,3 +65,39 @@ In step 1, nothing writes `activeSession`, so no task is ever locked yet.
 ### Not yet verified
 - Tested: type check, production build, and domain cleanup against sample inputs.
 - **Not yet clicked through in Chrome.** Manual test pending.
+
+---
+
+## 2026-09-22 — Plan change: override redesign (not built yet)
+
+### What I asked
+Replace the simple "hold 3s, then type a reason" override with a stronger design:
+- Hold to confirm for 3 seconds.
+- 3 emergency passes per week. Spending a pass ends the session.
+- When the passes run out, type the confession exactly: "I am choosing distraction over [task name]".
+- Then an unskippable "ad" countdown showing the task name, the "why" and the time remaining. It escalates from 60s to 120s to 180s for the rest of the week.
+- "Back to work" is always available. Leaving the page resets the countdown. The skip area reads "Skip unavailable. You set this up for a reason."
+- Add an optional one-line "why" field to each task.
+- Log every override.
+
+This is a plan change only. `CLAUDE.md` is updated, and there's no code yet.
+
+### What changed in CLAUDE.md
+- MVP item 1 now includes the optional "why".
+- MVP item 5 points to a new **Override design** section.
+- The accessibility section now covers the countdown.
+
+### Details I filled in (open to change)
+- **Week:** passes and escalation reset on Monday at 00:00 local time.
+- **Confession field:** paste is blocked, and the task name must match exactly.
+- **Logging:** abandoned attempts ("Back to work") are logged alongside completed overrides.
+- **Where the constants live:** the 60/120/180s ad lengths are policy constants in `lib/override.ts`, not motion tokens.
+
+### Tension to resolve
+- The confession and the ad are deliberately punitive. That's at odds with the motion principle "Redirect, don't punish" and with "No shaming language" on the Blocked page.
+- A proposed way to reconcile them: the Blocked page stays gentle, and friction is concentrated only in the override, which the user chose in advance ("Future you decides").
+- The case study should state this explicitly as a design decision.
+
+### Effect on existing code
+- `Task` will gain an optional `why?: string`. It's optional, so tasks already saved don't need to be migrated.
+- Step 1's lock design already assumes the override is the only way out, so no change is needed there.
