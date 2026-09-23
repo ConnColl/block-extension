@@ -3,6 +3,7 @@ import type { Task } from '@/lib/tasks';
 import { formatLength, formatTime } from '@/lib/time';
 import { SiteIcon } from './SiteIcon';
 import { duration, easing } from '@/lib/motion';
+import { useReducedMotion } from 'motion/react';
 
 interface Props {
   task: Task;
@@ -13,6 +14,8 @@ interface Props {
   startsIn?: string;
   /** No session running and this task hasn't ended yet. */
   startable: boolean;
+  /** 0–1 through the task when it's in progress: the "now" dot on its time bar. */
+  nowFraction?: number;
   /** Ended by an override. Stated neutrally. */
   endedEarly?: boolean;
   onStart: () => void;
@@ -22,7 +25,7 @@ interface Props {
   onDelete: () => void;
 }
 
-export function TaskRow({ task, locked, remaining, startsIn, startable, endedEarly, settling, onStart, onEdit, onDelete }: Props) {
+export function TaskRow({ task, locked, remaining, startsIn, startable, endedEarly, nowFraction, settling, onStart, onEdit, onDelete }: Props) {
   return (
     <div className="flex gap-5 py-5">
       <div className="w-24 shrink-0 text-sm tabular-nums">
@@ -38,6 +41,7 @@ export function TaskRow({ task, locked, remaining, startsIn, startable, endedEar
           animate={{ opacity: 0 }}
           transition={{ duration: duration.emphasized, ease: easing.standard, delay: duration.emphasized }}
         />
+        {nowFraction !== undefined && <NowDot fraction={nowFraction} />}
       </div>
 
       <div className="min-w-0 flex-1">
@@ -100,5 +104,20 @@ export function TaskRow({ task, locked, remaining, startsIn, startable, endedEar
         )}
       </div>
     </div>
+  );
+}
+
+/** Where "now" is within a task in progress. Real time, so it moves linearly. */
+function NowDot({ fraction }: { fraction: number }) {
+  const reduce = useReducedMotion();
+  return (
+    <motion.span
+      className="absolute left-1/2 size-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-accent ring-2 ring-bg"
+      initial={false}
+      animate={{ top: `${fraction * 100}%` }}
+      transition={reduce ? { duration: 0 } : { duration: duration.standard, ease: easing.linear }}
+    >
+      <span className="sr-only">Now</span>
+    </motion.span>
   );
 }

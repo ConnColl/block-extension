@@ -681,3 +681,56 @@ Keep the original release sentences as they are. Don't add the task name ("“[t
 ### Why
 - **The lines work on their own.** They're self-contained jokes, and adding "“Write the case study intro” can wait." made them longer without making them land harder.
 - **The task is still in view:** the top bar reads "Focusing on <task>", so the confession doesn't need to repeat it.
+
+---
+
+## 2026-09-23 — Morning Plan: two columns, "Earlier today", now marker, time defaults
+
+### What I asked
+1. **Two columns on wide windows:** Add a task on the left and Today on the right, both visible from the top. On narrow windows, stack them with the form first.
+2. **Schedule order:** current and upcoming tasks first. Past tasks collapse under "Earlier today (N)" and expand on click.
+3. **A subtle "now" marker.**
+4. **Adding a task** (signature moment 1): it settles into its place over `standard` with the `enter` easing, while the other tasks shift smoothly to make room.
+5. **The default time should reflect the current time,** to reduce input errors (AM/PM).
+
+### What went wrong
+- **The request looked like it had been ignored.** After I showed the plan, you reported "I still don't see the two column layout". That was expected, because nothing had been built yet: I was waiting for approval, per CLAUDE.md. I took the message as approval and built it.
+- **Lesson:** when a plan is waiting, say so clearly at the end, and make the approval step unmistakable.
+
+### What was built
+- **`lib/schedule.ts`** (pure, unit-tested):
+  - `suggestSlot()`: now, rounded up to 5 minutes. If that falls inside a task, it moves to that task's end, including across back-to-back tasks. It's 1 hour long, but stops before the next task's start and never runs past 11:59 PM.
+  - `partitionSchedule()`: sorts tasks into current, upcoming and earlier. Earlier means the end has passed or the task already has an outcome, such as ended early by override.
+  - `progressThrough()`: how far through a task you are, for the now marker.
+- **Layout.**
+  - Page width is `max-w-6xl`, with a compact header: date, "Morning plan" and the intro line.
+  - At the `lg` breakpoint and up, the grid is 5fr / 7fr: form on the left, Today on the right, both starting at the top. Below `lg`, it's one column with the form first.
+  - I dropped the idea from the plan of pinning the form while scrolling. The form, with its site suggestions, can be taller than the window, and a pinned element taller than the window hides its own bottom.
+- **Schedule.**
+  - The task in progress comes first, then upcoming tasks.
+  - **Earlier today (N)** is a disclosure button (`aria-expanded`, `aria-controls`). Its chevron rotates over `quick`, and the list expands in height and fades over `standard` with the `enter` easing. Earlier rows are slightly muted.
+  - Tasks move into Earlier today as their time passes.
+- **Now marker.**
+  - With a task in progress, a small accent dot sits on that task's time bar at its progress point. It moves with `easing.linear`, since it represents real time.
+  - Otherwise, a quiet "Now · 11:01 AM" line appears above the next task.
+- **Signature moment 1.**
+  - New rows fade in and rise 12px, and the other rows shift position, all on the same `{ duration: standard, ease: enter }`. This replaces the spring used before.
+  - The new row's time bar lands in the accent colour, then fades to neutral as before.
+  - After adding, the new task is scrolled into view (`block: 'nearest'`, smooth unless reduced motion is on). If it lands in the past, Earlier today opens automatically.
+  - Undo uses the same reveal.
+  - **Reduced motion:** fade only, with no position shifts.
+- **Default times.**
+  - The new-task form uses `suggestSlot()`.
+  - Until you touch either time field, the defaults move forward with the clock (the `followInitialTimes` prop), so a plan page left open since morning doesn't suggest a stale time.
+  - After adding a task, the next default starts at that task's end if it's the next free slot.
+- **CLAUDE.md:** MVP item 1 describes the layout, the schedule and the time defaults.
+
+### Verified in a real Chrome (headless)
+- **Wide (1360px):**
+  - The form and Today sit side by side from the top.
+  - The in-progress task shows the now dot.
+  - "Earlier today (2)" is collapsed, and expands with `aria-expanded=true`.
+- **Default start:** at 11:01, it was 11:41, because 11:05 fell inside the task running 10:41–11:41.
+- **Adding a task:** "Reply to recruiter" (11:41–11:56) settled between the current task and "Review Maya's deck". The mid-animation screenshot shows its accent bar while the rows below shift. The next default then became 11:56.
+- **Narrow (700px):** one column, form first.
+- **Tests:** 58 unit tests pass, adding `suggestSlot` (rounding, skipping clashes, stopping before the next task, the 11:59 PM cap), `partitionSchedule` (the end minute, ended-early tasks) and `progressThrough`.

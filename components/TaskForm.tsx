@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { WHY_MAX_LENGTH, validateDraft, type Task, type TaskDraft } from '@/lib/tasks';
 import { transition } from '@/lib/motion';
@@ -13,6 +13,8 @@ interface Props {
   onSubmit: (draft: TaskDraft) => Promise<void>;
   onCancel?: () => void;
   autoFocus?: boolean;
+  /** Keep start/end in step with `initial` until the user changes either (new-task form). */
+  followInitialTimes?: boolean;
 }
 
 const inputClass =
@@ -37,7 +39,7 @@ function FieldError({ id, message }: { id: string; message?: string }) {
   );
 }
 
-export function TaskForm({ idPrefix, initial, others, submitLabel, onSubmit, onCancel, autoFocus }: Props) {
+export function TaskForm({ idPrefix, initial, others, submitLabel, onSubmit, onCancel, autoFocus, followInitialTimes }: Props) {
   const [name, setName] = useState(initial.name);
   const [why, setWhy] = useState(initial.why ?? '');
   const [start, setStart] = useState(initial.start);
@@ -48,6 +50,14 @@ export function TaskForm({ idPrefix, initial, others, submitLabel, onSubmit, onC
   const [attempted, setAttempted] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [timesTouched, setTimesTouched] = useState(false);
+
+  // Default times move forward with the clock until the user sets their own.
+  useEffect(() => {
+    if (!followInitialTimes || timesTouched) return;
+    setStart(initial.start);
+    setEnd(initial.end);
+  }, [followInitialTimes, timesTouched, initial.start, initial.end]);
 
   const id = (field: string) => `${idPrefix}-${field}`;
   const errors = attempted ? validateDraft({ name, why, start, end, allowedSites: sites }, others) : {};
@@ -152,7 +162,10 @@ export function TaskForm({ idPrefix, initial, others, submitLabel, onSubmit, onC
             id={id('start')}
             type="time"
             value={start}
-            onChange={(e) => setStart(e.target.value)}
+            onChange={(e) => {
+              setTimesTouched(true);
+              setStart(e.target.value);
+            }}
             aria-invalid={!!errors.time || undefined}
             aria-describedby={errors.time ? id('time-error') : undefined}
             className={inputClass}
@@ -167,7 +180,10 @@ export function TaskForm({ idPrefix, initial, others, submitLabel, onSubmit, onC
             id={id('end')}
             type="time"
             value={end}
-            onChange={(e) => setEnd(e.target.value)}
+            onChange={(e) => {
+              setTimesTouched(true);
+              setEnd(e.target.value);
+            }}
             aria-invalid={!!errors.time || undefined}
             aria-describedby={errors.time ? id('time-error') : undefined}
             className={inputClass}
