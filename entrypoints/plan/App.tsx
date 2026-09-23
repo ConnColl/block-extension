@@ -161,6 +161,7 @@ export default function App() {
             startable={!session && canStart(task, now, outcomes)}
             endedEarly={outcomes[task.id]?.outcome === 'overridden'}
             completed={outcomes[task.id]?.outcome === 'completed'}
+            doneEarly={!!outcomes[task.id]?.early}
             missed={outcomes[task.id]?.outcome === 'missed' && !outcomes[task.id]?.pending}
             ask={
               nowFraction === undefined &&

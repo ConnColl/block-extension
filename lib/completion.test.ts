@@ -41,3 +41,17 @@ describe('trimmedEnd / shiftedTo', () => {
     expect(shiftedTo({ start: '22:00', end: '23:30' }, toMinutes('23:00'))).toEqual({ start: '23:00', end: '23:59' });
   });
 });
+
+describe('finishing early frees the rest of the slot', () => {
+  it('a new task fits in the time after the actual end, and is suggested there', async () => {
+    const { findOverlap } = await import('./tasks');
+    const { suggestSlot } = await import('./schedule');
+    const planned = t('a', '11:10', '12:10');
+    const finished = { ...planned, end: trimmedEnd(planned, toMinutes('11:26')) };
+    expect(finished.end).toBe('11:26');
+    const slot = { start: '11:30', end: '12:00' };
+    expect(findOverlap(slot, [planned])?.id).toBe('a');
+    expect(findOverlap(slot, [finished])).toBeUndefined();
+    expect(suggestSlot([finished], toMinutes('11:26'))).toEqual({ start: '11:30', end: '12:30' });
+  });
+});

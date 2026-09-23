@@ -135,6 +135,7 @@ async function endSession(tasks: Task[], now: number) {
  * Chrome starts or the extension is installed/reloaded, i.e. we may have missed its start).
  */
 async function reconcile({ catchUp }: { catchUp: boolean }) {
+  await freeOverriddenSlots();
   const now = Date.now();
   const tasks = await tasksItem.getValue();
   let session = await activeSessionItem.getValue();
@@ -222,6 +223,49 @@ async function logOverride(entry: Omit<OverrideLogEntry, 'at'>) {
 }
 
 /** Override with an emergency pass: spend it, log it, and end the session for good. */
+const minutesOfDay = (ms: number) => {
+  const d = new Date(ms);
+  return d.getHours() * 60 + d.getMinutes();
+};
+
+/**
+ * A task that ends before its planned end frees the rest of its slot: its end time
+ * becomes now (at least a minute after it started), and the planned end is kept on
+ * its outcome. Overlap checks, time suggestions and the schedule all read `end`.
+ */
+async function endTaskNow(taskId: string, outcome: 'overridden' | 'completed', now: number): Promise<Task[]> {
+  const tasks = await tasksItem.getValue();
+  const task = tasks.find((t) => t.id === taskId);
+  const outcomes = await outcomesItem.getValue();
+  if (!task) return tasks;
+  const end = trimmedEnd(task, minutesOfDay(now));
+  const updated = sortTasks(tasks.map((t) => (t.id === taskId ? { ...t, end } : t)));
+  await outcomesItem.setValue({
+    ...outcomes,
+    [taskId]: { outcome, at: now, early: true, plannedEnd: task.end },
+  });
+  await tasksItem.setValue(updated);
+  return updated;
+}
+
+/** One-off repair: tasks overridden before ends were trimmed still hold their whole slot. */
+async function freeOverriddenSlots() {
+  const outcomes = await outcomesItem.getValue();
+  const tasks = await tasksItem.getValue();
+  let changed = false;
+  const nextOutcomes = { ...outcomes };
+  const updated = tasks.map((t) => {
+    const o = outcomes[t.id];
+    if (o?.outcome !== 'overridden' || o.plannedEnd || !isToday(t, o.at) || taskEndMs(t) <= o.at) return t;
+    changed = true;
+    nextOutcomes[t.id] = { ...o, early: true, plannedEnd: t.end };
+    return { ...t, end: trimmedEnd(t, minutesOfDay(o.at)) };
+  });
+  if (!changed) return;
+  await outcomesItem.setValue(nextOutcomes);
+  await tasksItem.setValue(sortTasks(updated));
+}
+
 async function overrideWithPass(taskId: string): Promise<Response> {
   const now = Date.now();
   const session = liveSession(await activeSessionItem.getValue(), now);
@@ -230,10 +274,9 @@ async function overrideWithPass(taskId: string): Promise<Response> {
   const left = passesLeft(record, now);
   if (left === 0) return { ok: false, error: 'No emergency passes left this week.' };
 
-  const tasks = await tasksItem.getValue();
-  const task = tasks.find((t) => t.id === taskId);
+  const task = (await tasksItem.getValue()).find((t) => t.id === taskId);
   await passesItem.setValue(spendPass(record, now));
-  await outcomesItem.setValue({ ...(await outcomesItem.getValue()), [taskId]: { outcome: 'overridden', at: now } });
+  const tasks = await endTaskNow(taskId, 'overridden', now);
   await logOverride({
     taskId,
     taskName: task?.name ?? '',
@@ -250,11 +293,6 @@ async function overrideWithPass(taskId: string): Promise<Response> {
 async function logCompletion(entry: Omit<CompletionLogEntry, 'at'>, at = Date.now()) {
   await completionLogItem.setValue([...(await completionLogItem.getValue()), { at, ...entry }]);
 }
-
-const minutesOfDay = (ms: number) => {
-  const d = new Date(ms);
-  return d.getHours() * 60 + d.getMinutes();
-};
 
 /**
  * "Done" during a session. Honor-based by design: Block is a commitment device,
@@ -273,18 +311,11 @@ async function finishEarly(taskId: string, then: 'start-next' | 'take-back'): Pr
   if (then === 'start-next' && !next) return { ok: false, error: 'There’s no next task today.' };
 
   const { elapsedMin, totalMin, earnedMin } = doneSummary(session, now);
-  const end = trimmedEnd(task, minutesOfDay(now));
+  const trimmed = await endTaskNow(task.id, 'completed', now);
+  const end = trimmed.find((t) => t.id === task.id)!.end;
   const movedNext = next ? { ...next, ...shiftedTo(next, toMinutes(end)) } : undefined;
-  const updated = sortTasks(
-    tasks.map((t) => (t.id === task.id ? { ...t, end } : movedNext && t.id === movedNext.id ? movedNext : t)),
-  );
-
-  const finishedOutcomes = {
-    ...outcomes,
-    [task.id]: { outcome: 'completed' as const, at: now, early: true, plannedEnd: task.end },
-  };
-  await outcomesItem.setValue(finishedOutcomes);
-  await tasksItem.setValue(updated);
+  const updated = movedNext ? sortTasks(trimmed.map((t) => (t.id === movedNext.id ? movedNext : t))) : trimmed;
+  if (movedNext) await tasksItem.setValue(updated);
   await logCompletion({ taskId, taskName: task.name, outcome: 'completed', how: 'done-early', elapsedMin, plannedMin: totalMin, then }, now);
 
   if (movedNext) await startSession(movedNext, 'manual');
@@ -395,8 +426,7 @@ async function onAdMessage(run: { current: AdRun | null }, port: Browser.runtime
     const session = liveSession(await activeSessionItem.getValue(), now);
     if (!session || session.taskId !== r.taskId) return settleAdBreaks(r.taskId, 'outlasted', r);
     r.settled = true;
-    const tasks = await tasksItem.getValue();
-    await outcomesItem.setValue({ ...(await outcomesItem.getValue()), [r.taskId]: { outcome: 'overridden', at: now } });
+    const tasks = await endTaskNow(r.taskId, 'overridden', now);
     await logOverride({
       taskId: r.taskId,
       taskName: tasks.find((t) => t.id === r.taskId)?.name ?? '',

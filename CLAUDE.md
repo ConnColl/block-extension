@@ -37,7 +37,8 @@ When in doubt, cut scope — never ship something half-working.
      - **Start next task now:** the next task starts immediately and keeps its planned length. Later tasks stay where they are.
      - **Take the time back:** blocking ends until the next task's scheduled start, with "You earned 44 minutes."
      - With no next task, only "Take the time back" is offered.
-     - The finished task's end time moves to when it was finished (the planned end is kept with its outcome). Every completion is logged with its time.
+     - Every completion is logged with its time.
+   - **Early endings free their time.** A task finished with Done, or ended by an emergency pass or a completed ad break, gets its end time moved to when it actually ended (at least one minute after its start). The planned end is kept on its outcome. The overlap check, new-task time suggestions and the schedule all use the actual end. The schedule shows it as "11:10 AM–11:26 AM · Done early" or "· Ended early".
    - **Done is honor-based by design. Block is a commitment device, not a lie detector.** It trusts the user's word; the friction lives only in the override.
    - Signature moment 6: a check that settles in and draws itself on completion. Missed is noted neutrally ("Noted. It happens.").
 7. **Popup**: current task, time remaining, a Done button, tabs in use / limit (plus paused tabs, e.g. "3 of 5 tabs in use · 7 paused"), and "Open plan".

@@ -22,6 +22,8 @@ interface Props {
   endedEarly?: boolean;
   /** Marked completed. */
   completed?: boolean;
+  /** Finished before its planned end (Done): the times shown are the actual ones. */
+  doneEarly?: boolean;
   /** Answered "Not this time". Stated neutrally. */
   missed?: boolean;
   /** Time has passed with no answer yet: ask "Did you finish?". */
@@ -33,7 +35,7 @@ interface Props {
   onDelete: () => void;
 }
 
-export function TaskRow({ task, locked, remaining, startsIn, startable, endedEarly, completed, missed, ask, nowFraction, settling, onStart, onEdit, onDelete }: Props) {
+export function TaskRow({ task, locked, remaining, startsIn, startable, endedEarly, completed, doneEarly, missed, ask, nowFraction, settling, onStart, onEdit, onDelete }: Props) {
   return (
     <div className="flex gap-5 py-5">
       <div className="w-24 shrink-0 text-sm tabular-nums">
@@ -65,12 +67,18 @@ export function TaskRow({ task, locked, remaining, startsIn, startable, endedEar
         <p className="mt-0.5 text-sm text-muted">
           {locked && remaining ? (
             <span className="font-medium text-accent">In session · {remaining}</span>
+          ) : completed && doneEarly ? (
+            <>
+              {formatTime(task.start)}–{formatTime(task.end)} · Done early
+            </>
           ) : completed ? (
             <>{formatLength(task.start, task.end)} · Completed</>
           ) : missed ? (
             <>{formatLength(task.start, task.end)} · Missed</>
           ) : endedEarly ? (
-            <>{formatLength(task.start, task.end)} · Ended early</>
+            <>
+              {formatTime(task.start)}–{formatTime(task.end)} · Ended early
+            </>
           ) : startsIn ? (
             <span className="font-medium text-accent">
               {copy.headsUpLead}

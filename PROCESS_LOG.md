@@ -949,3 +949,34 @@ The 10-minute unskippable ad break, following the approved plan and the Override
 - Both strings now live in `lib/copy.ts` (`planIntro`, `addTaskHeading`), and the plan page reads them from there.
 - The copy table in CLAUDE.md is updated.
 - The Morning Plan now uses the same severed-browser language as the rest of the session copy.
+
+---
+
+## 2026-09-23 — Bug: early endings didn't free their time
+
+### What I asked
+When a task is finished early, ended by override, or marked done, its remaining time should be free. The overlap check and the schedule should use the task's actual end time, and the schedule should show it, e.g. "11:10–11:26 · Done early".
+
+### Cause
+- **"Done"** already moved the task's end to the moment it was finished.
+- **Overrides didn't:** both an emergency pass and a completed ad break only recorded an `overridden` outcome. The task kept its full planned slot, so the overlap check rejected new tasks in that time, and the default time skipped past it.
+- **"Did you finish?" answers** only happen after a task's end time, so there's no time left to free.
+
+### Fix
+- **`endTaskNow()` in the background** is now the one path for ending early. It's used by Done, an emergency pass and a completed ad break. It sets the task's `end` to now (at least one minute after its start), and records `early: true` and `plannedEnd` on the outcome.
+  - The overlap check, `suggestSlot` and `partitionSchedule` already read `task.end`, so they now see the freed time.
+- **One-off repair (`freeOverriddenSlots`, which runs on each reconcile and does nothing once repaired):** tasks overridden before this fix get their end trimmed to their override time, and their planned end saved.
+- **Schedule labels:**
+  - finished early with Done: "11:10 AM–11:26 AM · Done early";
+  - ended by an override: "11:12 AM–11:28 AM · Ended early";
+  - completed on time: "1 h · Completed".
+  - The time column on the left also shows the actual times.
+- **CLAUDE.md** MVP item 6 now says early endings free their time.
+
+### Verified
+- **Unit test:** an 11:10–12:10 task finished at 11:26 no longer clashes with a new 11:30–12:00 task, and the default slot becomes 11:30–12:30. 74 tests pass.
+- **Real Chrome (headless):**
+  - An emergency pass on "Review deck" (11:12–12:12) at 11:28 → task 11:12–11:28, with the outcome `overridden, early, plannedEnd 12:12`.
+  - A new task at 11:33–11:58 now fits, and the form suggests 11:30.
+  - A task overridden before the fix was repaired to 10:58–11:08.
+  - Both rows read "… · Ended early" with their real times.
