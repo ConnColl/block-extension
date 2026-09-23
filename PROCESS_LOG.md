@@ -1146,3 +1146,34 @@ Push only after I say go.
   - https://github.com/ConnColl/block-extension
   - Description: "Block: a calm focus commitment device for Chrome. Plan tasks with the sites they need; everything else waits."
   - `main` tracks `origin/main`, and GitHub matched the local HEAD (`fe00c39`) at publish time.
+
+---
+
+## 2026-09-23 — Relay handshake: resend "hello" until acknowledged
+
+### What I asked
+The relay page confirmed a race: a single "hello" sent on iframe load is usually lost, because the page's message listener attaches after the load event.
+- Make Block resend "hello" every 250ms until it gets "hello-ack", giving up after 8 seconds with the Pitch fallback, as now.
+- The relay is also adding a buffer for early messages, so this is defence in depth.
+- Rebuild, test in a real Chrome, and log it.
+
+### What changed
+- **`VideoAd`:**
+  - Sends "hello" every `HELLO_RETRY_MS` (250ms) from mount until "hello-ack" (or "ready") arrives. Sending before the embed page has loaded is harmless: the browser drops messages addressed to a page that isn't there yet.
+  - Stops resending at the existing 8s timeout, which falls back to The Pitch if the player isn't ready.
+  - The immediate "hello" on iframe load is kept as the first try.
+
+### Verified in a real Chrome (headless)
+- **Normal local relay:** ack, ready and state arrived; the video played muted; **Sound on** unmuted it and **Pause** paused it.
+- **Simulated race** (a local relay that drops Block's messages for the first 1.5s after load):
+  - A retried "hello" got through, and ack and ready arrived.
+  - The controls enabled, Sound on reported `muted: false`, and Pause reported state 2.
+  - The click at the video's centre hit Block's overlay.
+- **Relay unreachable:** no messages arrived, and after 8s the break showed The Pitch.
+- **The live portfolio relay, now deployed, with the production build:**
+  - **Default:** ack, ready and state arrived; playing (state 1) and muted; Sound on → `muted: false`; Pause → state 2; clicks blocked by the overlay.
+  - **Reduced motion (`?paused=1`):** ack and ready arrived; the video started paused, with a **Play** button; Play → state 1.
+- **Tests:** 74 unit tests pass. The production build contains only the portfolio URL.
+
+### Testing note
+My first simulated race also stopped the local relay from hearing YouTube for 1.5s, so it missed the player's one-time "ready" and Block fell back to The Pitch. That was a flaw in the test stand-in, not in Block or the real relay. The stand-in was corrected to drop only Block's early messages, which is the real race.

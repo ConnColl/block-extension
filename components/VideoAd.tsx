@@ -9,6 +9,11 @@ import { AD_EMBED_ORIGIN, AD_EMBED_URL, YT_PAUSED, YT_PLAYING, type RelayCommand
 
 /** If the relay hasn't reported the player ready by then, fall back to The Pitch. */
 const READY_TIMEOUT_MS = 8_000;
+/**
+ * The relay page's message listener can attach after the iframe's load event, so a
+ * single "hello" is often lost. Resend until "hello-ack", giving up with the ready timeout.
+ */
+const HELLO_RETRY_MS = 250;
 
 interface Props {
   /** Reduced motion: start paused, with a Play button. */
@@ -22,6 +27,7 @@ export function VideoAd({ startPaused, onFail }: Props) {
   const [muted, setMuted] = useState(true);
   const [playing, setPlaying] = useState(!startPaused);
   const readyRef = useRef(false);
+  const ackedRef = useRef(false);
   const failed = useRef(false);
   const onFailRef = useRef(onFail);
   onFailRef.current = onFail;
@@ -41,7 +47,10 @@ export function VideoAd({ startPaused, onFail }: Props) {
       if (e.origin !== AD_EMBED_ORIGIN || e.source !== frame.current?.contentWindow) return;
       const msg = e.data as RelayMessage;
       if (msg?.source !== 'block-ad-relay') return;
-      if (msg.type === 'ready') {
+      if (msg.type === 'hello-ack') {
+        ackedRef.current = true;
+      } else if (msg.type === 'ready') {
+        ackedRef.current = true;
         readyRef.current = true;
         setReady(true);
       } else if (msg.type === 'state') {
@@ -53,11 +62,18 @@ export function VideoAd({ startPaused, onFail }: Props) {
       }
     };
     window.addEventListener('message', onMessage);
+    // Messages sent before the embed page has loaded are simply dropped (wrong origin), so it's safe to start now.
+    const hello = setInterval(() => {
+      if (ackedRef.current) clearInterval(hello);
+      else post({ type: 'hello' });
+    }, HELLO_RETRY_MS);
     const timeout = setTimeout(() => {
+      clearInterval(hello);
       if (!readyRef.current) fail('The video didn’t load in time.');
     }, READY_TIMEOUT_MS);
     return () => {
       window.removeEventListener('message', onMessage);
+      clearInterval(hello);
       clearTimeout(timeout);
     };
   }, []);
