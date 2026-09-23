@@ -398,3 +398,70 @@ The entrance should be gentle and use the motion tokens. I approved the proposed
 - **Links:** they point to `https://notion.so`, `https://figma.com`, `https://docs.google.com` and `override.html`.
 - **Tab titles** switch correctly.
 - **Tests:** 39 unit tests pass, including the new `sessionProgress` test.
+
+---
+
+## 2026-09-23 — Step 4: The tab limit
+
+### What I asked
+During a session, allow at most 5 open tabs. A new tab over the limit is closed, with a calm in-page notice: "5 of 5 tabs in use. Close one to open another." The popup shows tabs used / limit.
+
+After reviewing the plan, I made two changes:
+1. **Parked tabs don't count** toward the limit. The popup shows "3 of 5 in use · 7 paused".
+2. **"Open here instead":** when a closed tab's URL is on the allowlist, the notice offers to load it in the current tab.
+
+### Decision: parked tabs don't count
+**What:** a tab counts as paused while it's parked (moved to the Blocked page at session start) *and* still on the Blocked page. Everything else in a normal window is in use, including tabs that hit a blocked site mid-session. Only tabs in use count toward the limit of 5.
+**Why:**
+- **Parked tabs are paused, not in use.** Counting them would punish people for what they had open before the session started, which Block itself chose to set aside.
+- **It protects the restore feature.** If parked tabs counted, starting a session with lots of tabs would force people to close the very tabs Block promised to bring back.
+- **It keeps the number honest:** "in use" means tabs you can actually work in right now.
+- **A parked tab counts again once you use it.** If you click from a parked tab to an allowed site, it's in use again and counts.
+
+### Decision: "Open here instead"
+**What:** when a new tab is closed for going over the limit and its URL is on the task's allowlist, the notice includes an **Open here instead** button. It loads that URL in the current tab. There's no button when the URL isn't allowed (it would be blocked anyway) or unknown, for example ⌘T's blank new tab.
+**Why:**
+- **Redirect, don't punish.** Closing the tab stops a sixth tab, not the work. If what you wanted is allowed, the notice offers a way forward instead of a dead end.
+- **The limit still holds.** Replacing the current tab's page keeps the count the same.
+- **It never offers a blocked site,** so the button can't become a way around the allowlist.
+
+### What was built
+- **`lib/tabs.ts`:**
+  - the constants `TAB_LIMIT = 5`, `TAB_NOTICE_MS = 6000` (a reading window) and `STARTUP_GRACE_MS = 10000`;
+  - `countTabs()` (in use vs. paused) and `tabLimitMessage()`;
+  - `parkedTabsItem`, moved here so the popup can read it.
+- **Background (`tabs.onCreated`):**
+  - Checks run one at a time, like the session code.
+  - When a session is live and the new tab is in a normal window: count the tabs in use; if over 5, close the new tab and notify the tab the user was on. That's the tab that opened it, else the active tab in its window, else the last focused one.
+  - Popup windows are ignored.
+  - **Startup grace:** `session:startupAt` is set the first time the worker runs in a browser session, because session storage is wiped when Chrome restarts. Tabs created in the first 10 seconds aren't closed, so Chrome's own tab restore is left alone.
+- **Notices:**
+  - `lib/notice.ts` is a shared notice component in a closed shadow root, using `motion/mini` and the tokens. It supports:
+    - a title, body, dot meter and action button;
+    - a close button and an auto-hide timer that pauses while hovered or focused.
+  - The heads-up was refactored onto it, and the content script is renamed `notices.content.ts`.
+  - The tab-limit notice (`lib/tabLimitNotice.ts`) shows the message and five dots. It includes "Open here instead" when allowed, and a new one replaces the previous one instead of stacking.
+  - Block's own pages (plan, Blocked, override) get content scripts too, so they listen for the same message and show it if it's meant for their tab.
+- **Popup:** "**3 of 5** tabs in use · 2 paused" with a five-dot meter, live as tabs change.
+- **CLAUDE.md:** MVP items 4 and 7 updated. Known limitations adds "no notice on `chrome://` pages or on pages open since before Block was installed or reloaded."
+
+### What went wrong
+- **"Open here instead" never appeared at first.**
+  - Cause: a tab opened from a link (`target=_blank`) has no URL yet when `tabs.onCreated` fires.
+  - Fix: before closing, `waitForUrl()` polls the tab for up to 1s until Chrome fills in the URL.
+  - Verified: the button appears and works.
+- **Repeated hits stacked notices on top of each other.** Now a new tab-limit notice replaces the current one.
+
+### Verified in a real Chrome (headless)
+- **Session start:** example.net and example.com were parked. The popup read "3 of 5 tabs in use · 2 paused".
+- **At the limit (7 tabs total, 2 paused = 5 in use):**
+  - An allowed link opened in a new tab: closed, with the notice and **Open here instead** on the opener. Clicking it loaded `example.org/wanted` in that tab, and the tab count stayed at 7.
+  - A disallowed link in a new tab: closed, with a notice but no button.
+  - A blank new tab (like ⌘T): closed.
+- **A parked tab counts again after use:** after moving a parked tab to an allowed page, the next new tab was closed.
+- **Startup grace:** with `startupAt` set to "just now", an extra tab was kept.
+- **Tests:** 42 unit tests pass.
+
+### Not verified
+- **A real Chrome restart mid-session** (the grace period was simulated).
+- **A new window (⌘N) over the limit.** Its only tab gets closed, which should close the window; that wasn't tested.

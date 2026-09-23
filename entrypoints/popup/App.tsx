@@ -3,6 +3,8 @@ import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { tasksOn } from '@/lib/tasks';
 import { HEADS_UP_MS, formatCountdown, remainingMs, taskStartMs } from '@/lib/session';
 import { SiteIcon } from '@/components/SiteIcon';
+import { useTabCounts } from '@/lib/useTabCounts';
+import { TAB_LIMIT } from '@/lib/tabs';
 import { useFocus, useNow } from '@/lib/hooks';
 import { dateKey, formatRemaining, formatTime } from '@/lib/time';
 import { transition } from '@/lib/motion';
@@ -33,6 +35,7 @@ export default function App() {
   const reduce = useReducedMotion();
   const now = useNow();
   const { tasks, session, task, loaded } = useFocus(now);
+  const tabs = useTabCounts();
 
   const today = tasks ? tasksOn(tasks, dateKey(new Date(now))) : [];
   const next = today.find((t) => taskStartMs(t) > now);
@@ -57,6 +60,26 @@ export default function App() {
               {formatRemaining(remainingMs(session, now))}
             </p>
             <p className="mt-1 text-sm text-muted">Until {formatTime(task.end)}</p>
+            {tabs && (
+              <div className="mt-5">
+                <p className="text-sm">
+                  <span className="font-medium tabular-nums">
+                    {tabs.inUse} of {TAB_LIMIT}
+                  </span>{' '}
+                  <span className="text-muted">
+                    tabs in use{tabs.paused > 0 && <> · {tabs.paused} paused</>}
+                  </span>
+                </p>
+                <div aria-hidden="true" className="mt-2 flex gap-1">
+                  {Array.from({ length: TAB_LIMIT }, (_, i) => (
+                    <span
+                      key={i}
+                      className={`size-1.5 rounded-full ${i < tabs.inUse ? 'bg-accent' : 'bg-line'}`}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
             <h2 className="mt-5 text-xs font-medium text-muted">Open during this task</h2>
             <ul className="mt-1.5 flex flex-wrap gap-1.5">
               {task.allowedSites.map((site) => (

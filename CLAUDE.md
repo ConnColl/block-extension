@@ -30,10 +30,10 @@ When in doubt, cut scope — never ship something half-working.
    - **Tab parking:** at session start, open tabs on non-allowed sites are parked on the Blocked page and their URLs are remembered. When the session ends, they're restored. On back-to-back tasks, a tab the next task also disallows stays parked.
    - **Full screen:** the current window goes full screen when any session starts, scheduled or manual. At the end it returns to its previous state. If the user leaves full screen mid-session, Block doesn't force it back.
 3. **Blocked page**: calm intercept. Shows the current task, time remaining, and the allowed sites as links. No shaming language.
-4. **Tab limit**: fixed maximum open tabs during a session (default 5). Extra tabs are closed with a gentle in-page notice.
+4. **Tab limit**: at most 5 tabs *in use* during a session. Parked tabs are paused, not in use, so they don't count. A new tab that would go over is closed. The tab the user was on shows a gentle notice: "5 of 5 tabs in use. Close one to open another." When the closed tab's URL is on the allowlist, the notice offers **Open here instead**, which loads it in the current tab. Tabs Chrome restores in the first 10 seconds after startup aren't closed, and popup windows (e.g. sign-in) don't count.
 5. **Override**: intentionally slow, and more costly the more it's used. See **Override design** below.
 6. **Task completion**: at session end, ask "Did you finish?" Mark complete or missed. A task that ends without an answer is marked missed.
-7. **Popup**: current task, time remaining, tabs used / limit, and "Open plan".
+7. **Popup**: current task, time remaining, tabs in use / limit (plus paused tabs, e.g. "3 of 5 tabs in use · 7 paused"), and "Open plan".
 
 ## Override design
 The only way to end a session early, or to edit or delete the task in an active session.
@@ -66,6 +66,7 @@ The ad-break length, spot sequence and developer length are policy constants, no
 - **Chrome quitting mid-session** loses the list of parked tabs, because tab ids don't survive a restart. Those tabs reopen on the Blocked page, which offers "Continue to …" once the session is over.
 - **Logins that pass through another domain** are blocked unless that domain is allowed. For example, a Google login goes through `accounts.google.com`.
 - **Content embedded inside an allowed site** (iframes) isn't blocked. Only full page loads are.
+- **No notice on Chrome's own pages.** Extensions can't draw on `chrome://` pages, including the new tab page. On those pages the tab limit still closes the extra tab, but no notice appears. The same goes for web pages that were already open before Block was installed or reloaded, until they're refreshed.
 - **Install warning:** redirecting pages needs host access to all sites, so Chrome warns "Read and change all your data on all websites".
 
 ## Out of scope (roadmap only — do not build)

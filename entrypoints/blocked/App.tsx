@@ -6,6 +6,7 @@ import { useFocus, useNow } from '@/lib/hooks';
 import { formatRemaining, formatTime } from '@/lib/time';
 import { duration, easing, transition } from '@/lib/motion';
 import { SiteIcon } from '@/components/SiteIcon';
+import { useTabLimitNotices } from '@/lib/useTabLimitNotices';
 
 const OVERRIDE_URL = browser.runtime.getURL('/override.html');
 
@@ -48,6 +49,7 @@ function useEntrance(reduce: boolean | null) {
 }
 
 export default function App() {
+  useTabLimitNotices();
   const reduce = useReducedMotion();
   const now = useNow();
   const { session, task, loaded } = useFocus(now);

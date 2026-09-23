@@ -1,8 +1,10 @@
 import { motion } from 'motion/react';
 import { transition } from '@/lib/motion';
+import { useTabLimitNotices } from '@/lib/useTabLimitNotices';
 
 /** Placeholder until step 5 builds the real override (hold, passes, confession, ad break). */
 export default function App() {
+  useTabLimitNotices();
   return (
     <main className="grid min-h-screen place-items-center bg-bg px-6 font-sans text-ink">
       <motion.div

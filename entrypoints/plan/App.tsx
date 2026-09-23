@@ -18,6 +18,7 @@ import { transition } from '@/lib/motion';
 import { TaskForm } from '@/components/TaskForm';
 import { TaskRow } from '@/components/TaskRow';
 import { UndoNotice, type UndoState } from '@/components/UndoNotice';
+import { useTabLimitNotices } from '@/lib/useTabLimitNotices';
 
 /** Suggest the next free hour: after the last task, or the next half hour from now. */
 function suggestDraft(tasks: Task[]): TaskDraft {
@@ -29,6 +30,7 @@ function suggestDraft(tasks: Task[]): TaskDraft {
 }
 
 export default function App() {
+  useTabLimitNotices();
   const reduce = useReducedMotion();
   const now = useNow();
   const { tasks: allTasks, session, loaded } = useFocus(now);

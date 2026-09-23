@@ -17,10 +17,16 @@ import {
   taskEndMs,
   taskStartMs,
   type ActiveSession,
-  type ParkedTabs,
   type SessionSource,
 } from '@/lib/session';
 import type { Request, Response } from '@/lib/messages';
+import {
+  STARTUP_GRACE_MS,
+  TAB_LIMIT,
+  countTabs,
+  parkedTabsItem,
+  type TabLimitNotice,
+} from '@/lib/tabs';
 
 const START_ALARM_PREFIX = 'start:';
 const HEADS_UP_ALARM_PREFIX = 'heads-up:';
@@ -28,11 +34,12 @@ const END_ALARM = 'session-end';
 const BLOCKED_PAGE = browser.runtime.getURL('/blocked.html');
 
 // Tab and window ids only mean something while Chrome is running, so these live in session storage.
-const parkedTabsItem = storage.defineItem<ParkedTabs>('session:parkedTabs', { fallback: {} });
 const windowStateItem = storage.defineItem<{ windowId: number; state: `${Browser.windows.WindowState}` } | null>(
   'session:windowBeforeFocus',
   { fallback: null },
 );
+/** When this browser session's worker first ran. Session storage is wiped when Chrome restarts. */
+const startupAtItem = storage.defineItem<number | null>('session:startupAt', { fallback: null });
 
 /**
  * Run session changes one at a time, so an alarm and a "Start now" click can't
@@ -227,6 +234,74 @@ async function checkTab(tabId: number, url: string | undefined) {
   }
 }
 
+/**
+ * Tab limit. During a session, a new tab that would take the tabs in use over
+ * TAB_LIMIT is closed, and the tab the user was on gets a calm notice. Parked
+ * tabs are paused, not in use, so they don't count.
+ */
+async function enforceTabLimit(tab: Browser.tabs.Tab) {
+  if (tab.id === undefined) return;
+  const now = Date.now();
+  const session = liveSession(await activeSessionItem.getValue(), now);
+  if (!session) return;
+
+  // Chrome restoring tabs after a restart isn't the user opening new ones.
+  const startupAt = await startupAtItem.getValue();
+  if (startupAt === null) await startupAtItem.setValue(now);
+  if (startupAt === null || now - startupAt < STARTUP_GRACE_MS) return;
+
+  const win = await browser.windows.get(tab.windowId).catch(() => null);
+  if (win?.type !== 'normal') return; // popups (e.g. sign-in windows) aren't tabs in use
+
+  const tabs = await browser.tabs.query({ windowType: 'normal' });
+  const { inUse } = countTabs(tabs, await parkedTabsItem.getValue(), BLOCKED_PAGE);
+  if (inUse <= TAB_LIMIT) return;
+
+  const url = await waitForUrl(tab);
+  await browser.tabs.remove(tab.id).catch(() => {});
+
+  const target = await noticeTarget(tab);
+  if (target === undefined) return;
+  const task = (await tasksItem.getValue()).find((t) => t.id === session.taskId);
+  const allowed = !!url && /^https?:\/\//.test(url) && !!task && !shouldSweepTab(url, task.allowedSites);
+  const notice: TabLimitNotice = {
+    type: 'notice/tab-limit',
+    targetTabId: target,
+    inUse: inUse - 1,
+    limit: TAB_LIMIT,
+    openHereUrl: allowed ? url : undefined,
+  };
+  // Web pages get it through the content script; Block's own pages through a broadcast.
+  await browser.tabs.sendMessage(target, notice).catch(() => {});
+  await browser.runtime.sendMessage(notice).catch(() => {});
+}
+
+/** Tabs opened from links often start with no URL; give Chrome a moment to fill it in so "Open here instead" can offer it. */
+const URL_WAIT_MS = 1000;
+const URL_POLL_MS = 50;
+async function waitForUrl(tab: Browser.tabs.Tab): Promise<string | undefined> {
+  const known = (t: Browser.tabs.Tab) => [t.pendingUrl, t.url].find((u) => u && u !== 'about:blank');
+  const deadline = Date.now() + URL_WAIT_MS;
+  let current: Browser.tabs.Tab | null = tab;
+  while (current && !known(current) && Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, URL_POLL_MS));
+    current = await browser.tabs.get(tab.id!).catch(() => null);
+  }
+  return current ? known(current) : undefined;
+}
+
+/** The tab the user was on: the one that opened the closed tab, else the active tab in that window (or the last focused one). */
+async function noticeTarget(closed: Browser.tabs.Tab): Promise<number | undefined> {
+  if (closed.openerTabId !== undefined) {
+    const opener = await browser.tabs.get(closed.openerTabId).catch(() => null);
+    if (opener?.id !== undefined) return opener.id;
+  }
+  const [inWindow] = await browser.tabs.query({ active: true, windowId: closed.windowId }).catch(() => []);
+  if (inWindow?.id !== undefined) return inWindow.id;
+  const [focused] = await browser.tabs.query({ active: true, lastFocusedWindow: true, windowType: 'normal' });
+  return focused?.id;
+}
+
 async function forgetParkedTab(tabId: number) {
   const parked = await parkedTabsItem.getValue();
   if (!(tabId in parked)) return;
@@ -237,6 +312,10 @@ async function forgetParkedTab(tabId: number) {
 export default defineBackground(() => {
   browser.runtime.onInstalled.addListener(() => void serial(() => reconcile({ catchUp: true })));
   browser.runtime.onStartup.addListener(() => void serial(() => reconcile({ catchUp: true })));
+  // Start the tab-limit grace period the first time the worker runs in this browser session.
+  void startupAtItem.getValue().then(async (at) => {
+    if (at === null) await startupAtItem.setValue(Date.now());
+  });
 
   browser.alarms.onAlarm.addListener((alarm) => {
     if (alarm.name.startsWith(START_ALARM_PREFIX)) {
@@ -256,6 +335,7 @@ export default defineBackground(() => {
   browser.tabs.onReplaced.addListener((addedTabId) => {
     void browser.tabs.get(addedTabId).then((tab) => checkTab(addedTabId, tab.url), () => {});
   });
+  browser.tabs.onCreated.addListener((tab) => void serial(() => enforceTabLimit(tab)));
   browser.tabs.onRemoved.addListener((tabId) => void serial(() => forgetParkedTab(tabId)));
 
   browser.runtime.onMessage.addListener((message: Request, _sender, sendResponse) => {
