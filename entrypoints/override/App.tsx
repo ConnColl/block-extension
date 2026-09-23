@@ -3,20 +3,27 @@ import { browser } from 'wxt/browser';
 import { AnimatePresence, motion, useReducedMotion, type Variants } from 'motion/react';
 import { useFocus, useNow, usePassesLeft } from '@/lib/hooks';
 import { remainingMs } from '@/lib/session';
-import { PASSES_PER_WEEK } from '@/lib/override';
+import { PASSES_PER_WEEK, buildConfession, pickConfessionLine, type OverrideStage } from '@/lib/override';
 import { send } from '@/lib/messages';
 import { formatRemaining, formatTime } from '@/lib/time';
 import { duration, durationMs, easing, transition } from '@/lib/motion';
 import { useTabLimitNotices } from '@/lib/useTabLimitNotices';
 import { HoldButton } from '@/components/HoldButton';
+import { Confession } from '@/components/Confession';
 
 const PLAN_URL = browser.runtime.getURL('/plan.html');
 
-type Stage = { kind: 'decide' } | { kind: 'ended'; passesLeft: number } | { kind: 'error'; message: string };
+type Stage =
+  | { kind: 'decide' }
+  | { kind: 'confess'; line: string }
+  | { kind: 'confessed' }
+  | { kind: 'ended'; passesLeft: number }
+  | { kind: 'error'; message: string };
 
 /**
- * The override: the only way to end a session early. Step 5a: hold to confirm,
- * then spend an emergency pass. "Back to work" is always the easy choice.
+ * The override: the only way to end a session early. Hold to confirm, then
+ * spend an emergency pass (5a) or, with none left, type a confession (5b).
+ * "Back to work" is always the easy choice.
  */
 export default function App() {
   useTabLimitNotices();
@@ -39,8 +46,11 @@ export default function App() {
     exit: { opacity: 0, transition: transition.exit },
   };
 
+  const attemptStage: OverrideStage =
+    stage.kind === 'confess' ? 'confession' : stage.kind === 'confessed' ? 'ad-break' : 'hold';
+
   async function backToWork() {
-    if (task) await send({ type: 'override/abandon', taskId: task.id, stage: 'hold' });
+    if (task) await send({ type: 'override/abandon', taskId: task.id, stage: attemptStage });
     // Back to the Blocked page (which lists the task's sites), or straight to the first allowed site.
     if (history.length > 1) history.back();
     else if (task?.allowedSites[0]) location.assign(`https://${task.allowedSites[0]}`);
@@ -53,7 +63,25 @@ export default function App() {
   }
 
   const view =
-    stage.kind === 'ended' ? 'ended' : !loaded || passes === null ? null : session && task ? 'decide' : 'none';
+    stage.kind === 'ended'
+      ? 'ended'
+      : !loaded || passes === null
+        ? null
+        : !session || !task
+          ? 'none'
+          : stage.kind === 'confess' || stage.kind === 'confessed'
+            ? stage.kind
+            : 'decide';
+
+  const backToWorkButton = (
+    <button
+      type="button"
+      onClick={backToWork}
+      className="w-full rounded-xl bg-accent px-5 py-3.5 text-base font-medium text-accent-ink transition-opacity hover:opacity-90"
+    >
+      Back to work
+    </button>
+  );
 
   return (
     <main className="min-h-screen bg-bg px-6 font-sans text-ink">
@@ -78,13 +106,7 @@ export default function App() {
               </motion.p>
 
               <motion.div variants={item} className="mt-10">
-                <button
-                  type="button"
-                  onClick={backToWork}
-                  className="w-full rounded-xl bg-accent px-5 py-3.5 text-base font-medium text-accent-ink transition-opacity hover:opacity-90"
-                >
-                  Back to work
-                </button>
+                {backToWorkButton}
               </motion.div>
 
               <motion.section variants={item} aria-labelledby="passes-heading" className="mt-14">
@@ -103,13 +125,51 @@ export default function App() {
                       Hold to use a pass
                     </HoldButton>
                   ) : (
-                    <p className="text-sm text-muted">
-                      {/* Step 5b replaces this with the confession. */}
-                      Without a pass, this session runs until {formatTime(task.end)}.
-                    </p>
+                    <HoldButton
+                      holdingLabel="Keep holding…"
+                      onComplete={() => setStage({ kind: 'confess', line: pickConfessionLine() })}
+                    >
+                      Hold to continue without a pass
+                    </HoldButton>
                   )}
                 </div>
               </motion.section>
+            </motion.div>
+          )}
+
+          {view === 'confess' && stage.kind === 'confess' && task && (
+            <motion.div key="confess" variants={container} initial="hidden" animate="show" exit="exit">
+              <motion.p variants={item} className="text-sm text-muted">
+                No emergency passes left this week.
+              </motion.p>
+              <motion.h1 variants={item} className="mt-3 text-3xl leading-tight font-semibold tracking-tight">
+                Say it in your own words. Well, these words.
+              </motion.h1>
+              <motion.div variants={item} className="mt-8">
+                <Confession
+                  sentence={buildConfession(stage.line, task.name)}
+                  onConfirm={() => setStage({ kind: 'confessed' })}
+                />
+              </motion.div>
+              <motion.div variants={item} className="mt-12">
+                {backToWorkButton}
+              </motion.div>
+            </motion.div>
+          )}
+
+          {view === 'confessed' && task && (
+            <motion.div key="confessed" variants={container} initial="hidden" animate="show" exit="exit">
+              <motion.h1 variants={item} className="text-3xl leading-tight font-semibold tracking-tight">
+                Noted.
+              </motion.h1>
+              <motion.p variants={item} className="mt-3 text-base text-muted">
+                {/* Step 5c replaces this with the 10-minute ad break. */}
+                Next comes a 10-minute ad break. It isn’t built yet, so this session keeps running until{' '}
+                {formatTime(task.end)}.
+              </motion.p>
+              <motion.div variants={item} className="mt-10">
+                {backToWorkButton}
+              </motion.div>
             </motion.div>
           )}
 

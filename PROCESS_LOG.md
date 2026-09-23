@@ -590,3 +590,45 @@ Keep the matching forgiving of capitalization, extra spaces **and punctuation**,
 - **Ignoring punctuation** means the effort is in writing out the words, not in getting a comma or full stop exactly right. That keeps it friction, not a gotcha.
 
 Not built yet; this is part of step 5b.
+
+---
+
+## 2026-09-23 — Step 5b: The confession
+
+### What I asked
+- Build the confession for when passes run out: one of the four lines picked at random, then "[task name] can wait.".
+- It's forgiving of capitalization, extra spaces and punctuation, with paste disabled.
+- Keep all four lines, and reword principle #3 to match what they are: "The confession is private and self-aware: a little uncomfortable on purpose, never cruel."
+
+### What was built
+- **CLAUDE.md principle #3** is reworded as above.
+- **`lib/override.ts`:**
+  - `CONFESSION_LINES`, `pickConfessionLine()` and `buildConfession(line, task)`, which gives "<line> <task> can wait.";
+  - `normalizeConfession()`: lowercase; drop apostrophes and quotes ("Maya's" → "mayas"); turn other punctuation into spaces ("case-study" → "case study"); collapse spaces;
+  - `confessionMatches()`, which also rejects empty input.
+- **Flow:** with 0 passes, the hold button reads "Hold to continue without a pass". After the full 3-second hold, the confession screen appears:
+  - "No emergency passes left this week."
+  - "Say it in your own words. Well, these words."
+  - the sentence in a card (not selectable, so it can't be copied);
+  - a textarea labeled "Type it to continue";
+  - **Continue**, enabled only on a match, with a quiet "Matches." that fades in;
+  - **Back to work** underneath, still the big button.
+- **Paste and drop are blocked,** with the hint "Pasting is off. Type it out; that's the point." Before any paste attempt, the hint reads "Capitals and punctuation don't matter." Autocorrect, autocapitalize and spellcheck are off. Enter submits when the text matches.
+- **A new line is picked once per attempt,** when the hold completes. It stays fixed while typing.
+- **After Continue:** "Noted." and a placeholder: the 10-minute ad break is step 5c, so for now the session keeps running.
+- **Logging:** "Back to work" logs `confession, abandoned` at stage `confession`, or at `ad-break` from the placeholder.
+- **Motion-token fix:** Tailwind's `transition-*` utilities defaulted to 150ms with Tailwind's own easing, which is outside the token system. The theme now sets `--default-transition-duration: 200ms` (`quick`) and `--default-transition-timing-function` to the `standard` curve. This applies to the existing hover and fade transitions: buttons, chips and the favicon arrow.
+
+### What went wrong
+- **Hyphens.** My first normalization *deleted* all punctuation, so "case-study" became "casestudy" and didn't match "case study". Apostrophes are now removed, and other punctuation becomes a space.
+
+### Verified in a real Chrome (headless)
+- **No passes:** the page offers "Hold to continue without a pass". A 3.3s Space hold opens the confession, for example "Please return me to the content mines. Review Maya's deck can wait."
+- **Paste:** a paste event is cancelled, and the hint switches to "Pasting is off…".
+- **A wrong sentence** keeps Continue disabled.
+- **Sloppy but correct** input unlocks Continue: all lowercase, no full stops, double spaces and a straight apostrophe instead of a curly one. Enter then shows "Noted." and the placeholder.
+- **Log:** `confession, abandoned at ad-break` and `confession, abandoned at confession`, each with 0 passes left. The session stayed running throughout.
+- **Tests:** 51 unit tests pass, covering the confession build, the forgiving matching, the words still required (including the task name), apostrophes and quotes in task names, and all four lines being picked.
+
+### Not yet logged
+Leaving the page during the confession, for example by closing the tab, isn't logged yet. 5c adds a live connection to the background worker that logs a departure as abandoned and resets the ad break.

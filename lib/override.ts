@@ -53,3 +53,38 @@ export interface OverrideLogEntry {
 }
 
 export const overrideLogItem = storage.defineItem<OverrideLogEntry[]>('local:overrideLog', { fallback: [] });
+
+/** Confession lines, one picked at random per attempt, followed by "[task name] can wait." */
+export const CONFESSION_LINES = [
+  'I would like to abandon my potential please.',
+  'I am voluntarily entering the scroll hole.',
+  'Please return me to the content mines.',
+  'I would rather consume content than become the person I said I wanted to be.',
+] as const;
+
+export function pickConfessionLine(random: () => number = Math.random): string {
+  return CONFESSION_LINES[Math.floor(random() * CONFESSION_LINES.length)] ?? CONFESSION_LINES[0];
+}
+
+export function buildConfession(line: string, taskName: string): string {
+  return `${line} ${taskName.trim()} can wait.`;
+}
+
+/**
+ * Lowercase, drop apostrophes and quotes ("Maya's" → "mayas"), treat other
+ * punctuation as a space ("case-study" → "case study"), collapse spaces.
+ */
+export function normalizeConfession(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/['’‘`´"“”]/g, '')
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/** Forgiving of capitalization, punctuation and spacing; the words themselves must match. */
+export function confessionMatches(typed: string, target: string): boolean {
+  const t = normalizeConfession(typed);
+  return t.length > 0 && t === normalizeConfession(target);
+}

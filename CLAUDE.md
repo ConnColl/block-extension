@@ -98,7 +98,7 @@ Easings:
 ## Motion principles for Block
 1. **Calm over clever.** A focus tool never competes for attention.
 2. **Redirect, don't punish.** Blocking feels like a door gently closing, not an alarm.
-3. **Friction, not punishment.** The Blocked page stays gentle. All friction lives in the override, because the user set those rules in advance. The confession is private and states a fact in the user's own words; it never insults.
+3. **Friction, not punishment.** The Blocked page stays gentle. All friction lives in the override, because the user set those rules in advance. The confession is private and self-aware: a little uncomfortable on purpose, never cruel.
 4. **Friction is a feature.** The override is the one place motion is deliberately slow. The user should feel the time pass.
 5. **Entering focus should feel like a shift.** The session start is the signature moment: noticeable, quiet, and confident.
 6. **Closure without guilt.** Completing a task feels good; a missed task is noted neutrally.
