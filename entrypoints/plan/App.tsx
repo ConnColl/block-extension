@@ -20,6 +20,7 @@ import { TaskForm } from '@/components/TaskForm';
 import { TaskRow } from '@/components/TaskRow';
 import { UndoNotice, type UndoState } from '@/components/UndoNotice';
 import { DevSettings } from '@/components/DevSettings';
+import { copy } from '@/lib/copy';
 import { useTabLimitNotices } from '@/lib/useTabLimitNotices';
 
 const minutesOfDay = (ms: number) => {
@@ -188,7 +189,7 @@ export default function App() {
           <p className="text-sm text-muted">{formatToday()}</p>
           <h1 className="mt-1 text-3xl font-semibold tracking-tight">Morning plan</h1>
           <p className="mt-2 max-w-xl text-base text-muted">
-            Decide now what later-you can open. Each task gets a time and the few sites it actually needs.
+            {copy.planIntro}
           </p>
         </header>
 
@@ -196,7 +197,7 @@ export default function App() {
         <div className="mt-10 grid gap-12 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-14">
           <section aria-labelledby="add-heading" className="self-start rounded-2xl border border-line bg-surface p-6">
             <h2 id="add-heading" className="mb-5 text-lg font-semibold tracking-tight">
-              Add a task
+              {copy.addTaskHeading}
             </h2>
             {tasks && (
               <TaskForm

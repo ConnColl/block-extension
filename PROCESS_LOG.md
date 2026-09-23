@@ -936,3 +936,16 @@ The 10-minute unskippable ad break, following the approved plan and the Override
 
 ### Not verified
 - **The Testimonial with real completions in a live ad break.** It's unit-tested, and it uses the same data path as sample data.
+
+---
+
+## 2026-09-23 — Copy: Morning Plan speaks to the innie
+
+### What I asked
+- **Intro:** "Decide now what later-you can open. Each task gets a time and the few sites it actually needs." → "Decide now what your innie can open. Each task is assigned a time block and the few sites needed to complete it."
+- **Heading:** "Add a task" → "Add a task for your innie".
+
+### What changed
+- Both strings now live in `lib/copy.ts` (`planIntro`, `addTaskHeading`), and the plan page reads them from there.
+- The copy table in CLAUDE.md is updated.
+- The Morning Plan now uses the same severed-browser language as the rest of the session copy.

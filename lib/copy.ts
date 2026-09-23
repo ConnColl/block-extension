@@ -19,6 +19,10 @@ export const copy = {
   /** Popup during a session: "Innie · 18 min left". */
   popupStatus: (remaining: string) => `Innie · ${remaining}`,
 
+  /** Morning Plan. */
+  planIntro: 'Decide now what your innie can open. Each task is assigned a time block and the few sites needed to complete it.',
+  addTaskHeading: 'Add a task for your innie',
+
   /** Session end. */
   welcomeTitle: 'Welcome back outty.',
   welcomeBody: 'Your tabs are right where you left them.',

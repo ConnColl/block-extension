@@ -148,6 +148,8 @@ Inspired by the TV show *Severance*. The product never names the show, and never
 | Parked tabs | "4 tabs waiting for your outty." |
 | Popup (session) | "Innie · 18 min left" |
 | Session end | "Welcome back outty. Your tabs are right where you left them." |
+| Morning Plan intro | "Decide now what your innie can open. Each task is assigned a time block and the few sites needed to complete it." |
+| Add-task heading | "Add a task for your innie" |
 | Ad break | unchanged |
 
 ## Honesty rules
