@@ -37,16 +37,23 @@ The only way to end a session early, or to edit or delete the task in an active 
 1. **Hold to confirm.** Hold a button for 3 seconds (`deliberate` token). Releasing early cancels the override.
 2. **Emergency passes.** The user gets 3 passes per week. If one is left, holding spends it and the session ends immediately.
 3. **Confession (passes used up).** The user must type this sentence exactly, generated from the task: `I am choosing distraction over [task name]`. The field doesn't accept paste. Matching ignores capitalization, spaces at the start and end, and repeated spaces between words. Otherwise the words must match exactly, including the task name.
-4. **Unskippable "ad" countdown.** After the confession, a countdown plays. It shows the task name, the task's "why" (if one was set) and the time left in the session.
-   - Length escalates across the week: the first confession-override is 60s, the second is 120s, and every one after that is 180s until the weekly reset.
+4. **Unskippable "ad break."** After the confession, a fixed 10-minute ad break plays. The session only ends if the user sits through it.
+   - The break is a sequence of short spots, labeled like TV: **"Ad 3 of 12 · Your break begins in 7:42"**. The spot count and lengths add up to exactly 10 minutes.
+   - The spots rotate through:
+     - the task and its "why" (if one was set);
+     - the time remaining in the block;
+     - the tasks completed this week (real data only; this spot is left out until task completion exists);
+     - a one-minute breathing spot.
    - **"Back to work"** is always available. It cancels the override and returns to the task.
-   - Leaving the page resets the countdown: closing the tab, navigating away or reloading starts the ad over at its full length.
+   - Leaving the page resets the countdown: closing the tab, navigating away or reloading starts the break over from Ad 1.
    - The skip area reads exactly: **"Skip unavailable. You set this up for a reason."**
-   - When the countdown finishes, the session ends.
-5. **Logging.** Record every override in `chrome.storage.local` with its time, the task, the method (`pass` or `confession`) and the ad length. Also record the passes left and the escalation level. Back-to-work cancellations are logged as abandoned attempts.
+   - When the break finishes, the session ends.
+   - **If the session reaches its end time during the break**, the break stops and shows: **"Good news: you made it. Your session is over."** The session ends normally, not as an override.
+5. **Logging.** Record every override in `chrome.storage.local` with its time, the task, and the method (`pass` or `confession`), plus the passes left. Back-to-work cancellations are logged as abandoned attempts. A session that ends naturally during the break is logged as `outlasted`, not as an override.
+6. **Developer setting.** A toggle that shortens the ad break to 10 seconds total, for testing. It's off by default and clearly labeled as a developer setting.
 
-Weekly reset: passes and the escalation level reset on Monday at 00:00 local time.
-The ad lengths (60/120/180s) are policy constants, not motion tokens. Keep them in one place (e.g. `lib/override.ts`).
+Weekly reset: passes reset on Monday at 00:00 local time.
+The ad-break length, spot sequence and developer length are policy constants, not motion tokens. Keep them in one place (e.g. `lib/override.ts`).
 
 ## Out of scope (roadmap only — do not build)
 AI-generated schedules, website suggestions, calendar integration, drag-and-drop rescheduling, analytics dashboards, streaks, distraction reports, tab grouping. These appear in the case study as a roadmap.
@@ -79,7 +86,7 @@ Easings:
 6. Task complete / missed
 
 ## Accessibility — non-negotiable
-- Respect `prefers-reduced-motion` (Motion's `useReducedMotion`). The override hold still requires 3 seconds, but shows a progress bar instead of animated effects. The ad countdown shows a plain numeric timer, and "Back to work" must be reachable by keyboard at all times.
+- Respect `prefers-reduced-motion` (Motion's `useReducedMotion`). The override hold still requires 3 seconds, but shows a progress bar instead of animated effects. The ad break shows a plain numeric timer, the breathing spot uses text cues ("Breathe in… breathe out") instead of an animated shape, and "Back to work" must be reachable by keyboard at all times.
 - Everything keyboard-accessible, visible focus states, WCAG AA contrast.
 
 ## Design direction
