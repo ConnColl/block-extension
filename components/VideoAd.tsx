@@ -1,20 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
-import { browser } from 'wxt/browser';
+import { AD_EMBED_ORIGIN, AD_EMBED_URL, YT_PAUSED, YT_PLAYING, type RelayCommand, type RelayMessage } from '@/lib/adEmbed';
 
 /**
- * Demo placeholder for the ad break: one YouTube video, looped until the break
- * is over. The spot lineup (AdSpots) is the next iteration.
- *
- * Talks to the player with YouTube's standard embed postMessage protocol, so no
- * remote script runs in the extension page.
+ * Demo placeholder for the ad break: one looping YouTube video, loaded through
+ * the portfolio site's embed page (see lib/adEmbed.ts for why and the protocol).
+ * The spot lineup (AdSpots) is the next iteration.
  */
-export const AD_VIDEO_ID = 'rMLFJqtpGUQ';
-const YT_ORIGIN = 'https://www.youtube-nocookie.com';
-/** If the player hasn't said it's ready by then, fall back to The Pitch. */
+
+/** If the relay hasn't reported the player ready by then, fall back to The Pitch. */
 const READY_TIMEOUT_MS = 8_000;
 
 interface Props {
-  /** Reduced motion: start paused on the first frame, with a Play button. */
+  /** Reduced motion: start paused, with a Play button. */
   startPaused: boolean;
   onFail: (reason: string) => void;
 }
@@ -24,30 +21,15 @@ export function VideoAd({ startPaused, onFail }: Props) {
   const [ready, setReady] = useState(false);
   const [muted, setMuted] = useState(true);
   const [playing, setPlaying] = useState(!startPaused);
+  const readyRef = useRef(false);
   const failed = useRef(false);
   const onFailRef = useRef(onFail);
   onFailRef.current = onFail;
 
-  const src = (() => {
-    const p = new URLSearchParams({
-      autoplay: startPaused ? '0' : '1',
-      mute: '1',
-      loop: '1',
-      playlist: AD_VIDEO_ID, // needed for a single video to loop
-      rel: '0',
-      controls: '0',
-      disablekb: '1',
-      fs: '0',
-      iv_load_policy: '3',
-      playsinline: '1',
-      enablejsapi: '1',
-      origin: new URL(browser.runtime.getURL('/')).origin,
-    });
-    return `${YT_ORIGIN}/embed/${AD_VIDEO_ID}?${p}`;
-  })();
+  const src = startPaused ? `${AD_EMBED_URL}?paused=1` : AD_EMBED_URL;
 
-  const command = (func: string) =>
-    frame.current?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func, args: [] }), YT_ORIGIN);
+  const post = (msg: object) => frame.current?.contentWindow?.postMessage({ source: 'block-ad', ...msg }, AD_EMBED_ORIGIN);
+  const command = (func: RelayCommand) => post({ type: 'command', func });
 
   useEffect(() => {
     const fail = (reason: string) => {
@@ -56,35 +38,29 @@ export function VideoAd({ startPaused, onFail }: Props) {
       onFailRef.current(reason);
     };
     const onMessage = (e: MessageEvent) => {
-      if (e.origin !== YT_ORIGIN || typeof e.data !== 'string') return;
-      let data: { event?: string; info?: unknown };
-      try {
-        data = JSON.parse(e.data);
-      } catch {
-        return;
-      }
-      if (data.event === 'onReady' || (data.event === 'infoDelivery' && data.info && typeof data.info === 'object' && 'playerState' in data.info)) {
+      if (e.origin !== AD_EMBED_ORIGIN || e.source !== frame.current?.contentWindow) return;
+      const msg = e.data as RelayMessage;
+      if (msg?.source !== 'block-ad-relay') return;
+      if (msg.type === 'ready') {
+        readyRef.current = true;
         setReady(true);
+      } else if (msg.type === 'state') {
+        if (msg.playerState === YT_PLAYING) setPlaying(true);
+        if (msg.playerState === YT_PAUSED) setPlaying(false);
+        if (typeof msg.muted === 'boolean') setMuted(msg.muted);
+      } else if (msg.type === 'error') {
+        fail(`YouTube player error ${msg.code}`);
       }
-      if (data.event === 'onError') fail(`YouTube player error ${String(data.info)}`);
     };
     window.addEventListener('message', onMessage);
     const timeout = setTimeout(() => {
-      setReady((r) => {
-        if (!r) fail('The video player didn’t load in time.');
-        return r;
-      });
+      if (!readyRef.current) fail('The video didn’t load in time.');
     }, READY_TIMEOUT_MS);
     return () => {
       window.removeEventListener('message', onMessage);
       clearTimeout(timeout);
     };
   }, []);
-
-  // Start listening to the player once the frame has loaded.
-  const onLoad = () => {
-    frame.current?.contentWindow?.postMessage(JSON.stringify({ event: 'listening', id: 'block-ad', channel: 'widget' }), YT_ORIGIN);
-  };
 
   const control = 'rounded-lg border border-line bg-bg px-3 py-1.5 text-xs font-medium hover:bg-surface disabled:opacity-50';
 
@@ -95,10 +71,9 @@ export function VideoAd({ startPaused, onFail }: Props) {
           ref={frame}
           src={src}
           title="Ad break video"
-          onLoad={onLoad}
-          allow="autoplay; encrypted-media; picture-in-picture"
-          referrerPolicy="strict-origin-when-cross-origin"
-          className="absolute inset-0 size-full"
+          onLoad={() => post({ type: 'hello' })}
+          allow="autoplay"
+          className="absolute inset-0 size-full border-0"
         />
         {/* The ad can't be clicked through, paused or skipped from the video itself. */}
         <div aria-hidden="true" className="absolute inset-0" />

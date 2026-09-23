@@ -61,8 +61,14 @@ The only way to end a session early, or to edit or delete the task in an active 
    - During the confession and the ad break, **"Back to work"** sits in a top bar: prominent, always visible, and out of the submit path.
 4. **Unskippable "ad break."** After the confession, a fixed 10-minute ad break plays. The session only ends if the user sits through it.
    - The break is a sequence of short spots, labeled like TV: **"Ad 3 of 12 · Your break begins in 7:42"**. The spot count and lengths add up to exactly 10 minutes.
-   - **Current build (demo placeholder):** the whole break is one YouTube video (`rMLFJqtpGUQ`), embedded from youtube-nocookie.com. It's set to start muted and loop until the 10 minutes are up, with related videos, controls and click-through off, and Block's own **Pause/Play** and **Sound on/off** buttons. With reduced motion it starts paused. The header reads "Ad break · Your break begins in 9:12". If the video can't load, the break shows **The Pitch** instead.
-   - **Finding (2026-09-23):** YouTube refuses embeds from extension pages (Error 153, because a `chrome-extension://` page has no normal web origin), so today the break always falls back to The Pitch. The same embed plays fine from a normal web page. Next step, to decide: host a small embed page on the portfolio site (a real origin) and load that in the ad break, or keep the Pitch fallback. Block does **not** rewrite the referrer to get around this.
+   - **Current build (demo placeholder):** the whole break is one YouTube video (`rMLFJqtpGUQ`). It's loaded through an embed page on the portfolio site, `https://court-portfolio-gules.vercel.app/embed/ad-break`, set in `lib/adEmbed.ts`. The iframe has `allow="autoplay"`.
+     - **Why the portfolio page:** YouTube refuses embeds from extension pages (Error 153, because a `chrome-extension://` page has no normal web origin). Block does **not** rewrite the referrer to get around it.
+     - **The relay:** the portfolio page relays messages between Block and the player (protocol in `lib/adEmbed.ts`). That's what makes Block's **Pause/Play** and **Sound on/off** buttons work, and it reports ready, state and errors back to Block.
+     - **Playback:** muted autoplay, looping until the 10 minutes are up, with related videos, controls and click-through off. A transparent layer over the iframe blocks clicks.
+     - **Reduced motion:** Block adds `?paused=1`, so the video starts paused with a Play button.
+     - **Header:** "Ad break · Your break begins in 9:12".
+     - **Fallback:** if the relay reports a player error, or the player isn't ready within 8 seconds (for example, the site is down or the relay isn't deployed), the break shows **The Pitch**.
+     - The portfolio page's `Content-Security-Policy: frame-ancestors 'self' chrome-extension:` stays broad for now, because testers' extension IDs differ.
    - **Next iteration, the spot lineup** (built and unit-tested in `components/AdSpots.tsx` and `lib/adbreak.ts`, but not used yet). The spots are built only from the user's own data, never real ads. Spots with no data are skipped:
      - **The Pitch:** the task and its why.
      - **The Countdown:** the live time left in the block.
@@ -95,7 +101,7 @@ The ad break is ad inventory, but Block protects attention, the antithesis of ad
 - **Logins that pass through another domain** are blocked unless that domain is allowed. For example, a Google login goes through `accounts.google.com`.
 - **Content embedded inside an allowed site** (iframes) isn't blocked. Only full page loads are.
 - **No notice on Chrome's own pages.** Extensions can't draw on `chrome://` pages, including the new tab page. On those pages the tab limit still closes the extra tab, but no notice appears. The same goes for web pages that were already open before Block was installed or reloaded, until they're refreshed.
-- **The ad-break video comes from YouTube's servers** (youtube-nocookie avoids tracking cookies until the video plays, but YouTube still receives the request). YouTube also refuses embeds from extension pages (Error 153), so for now the break shows The Pitch. See Override design.
+- **The ad-break video loads from the portfolio site (Vercel) and YouTube.** youtube-nocookie avoids tracking cookies until the video plays, but both servers receive the request. If the portfolio page is down, the break shows The Pitch. YouTube may also turn on its own captions for muted autoplay, which duplicates the video's burned-in subtitles.
 - **Install warning:** redirecting pages needs host access to all sites, so Chrome warns "Read and change all your data on all websites".
 
 ## Out of scope (roadmap only — do not build)

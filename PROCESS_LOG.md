@@ -1046,3 +1046,47 @@ There should be a way to select Done in the Morning Plan view, not only by openi
 
 ### Not verified
 - **The Sound and Pause buttons against a live player.** They're disabled until the player is ready, and the player never became ready from the extension page. They'll need a check once the embed is hosted on a real origin.
+
+---
+
+## 2026-09-23 — Ad-break video through the portfolio embed page (relay)
+
+### What I asked
+- YouTube refused the embed from the extension page, so load the video through my own site instead: iframe `https://court-portfolio-gules.vercel.app/embed/ad-break` with `allow="autoplay"`.
+- Keep the fallback, the transparent click-blocking layer, and the sound and pause controls.
+- Skip testing whether Block could message the player directly. Use a **relay** on the embed page from the start.
+- Write the relay snippet, including `?paused=1` so reduced motion starts paused, as a prompt I can paste into Claude Code in my court-portfolio window.
+- Leave the site's `frame-ancestors 'self' chrome-extension:` header broad, since testers' extension IDs differ.
+
+### What was built (Block's side)
+- **`lib/adEmbed.ts`:** the embed URL, which a test build can override with `WXT_AD_EMBED_URL`, its origin, and the relay protocol:
+  - Block → relay: `hello`, and `command` (`mute`, `unMute`, `playVideo`, `pauseVideo`);
+  - relay → Block: `hello-ack`, `ready`, `state` (playerState, muted), `error` (code);
+  - `?paused=1` starts the video paused.
+- **`VideoAd`:**
+  - It iframes the embed page with `allow="autoplay"`, adding `?paused=1` when reduced motion is on, and sends `hello` when the frame loads.
+  - It only accepts messages from the embed page's origin and that exact frame.
+  - Pause/Play and Sound on/off send commands through the relay, and the button labels follow the player's reported state.
+  - **Fallback:** a relay error, or no `ready` within 8s, shows The Pitch.
+  - The transparent layer over the iframe is kept.
+- **The relay snippet** for the portfolio site is delivered as a paste-ready prompt. It's a Next.js client component that:
+  - builds the youtube-nocookie URL, with `autoplay=0` when `?paused=1`, plus `origin` and `enablejsapi`;
+  - sends YouTube the "listening" message until the player is ready;
+  - forwards only the four allowed commands, and only from a `chrome-extension://` parent;
+  - reports ready, state and errors to the parent that said hello, holding them if they arrive before the hello.
+- **CLAUDE.md:** the Override design's "Current build" describes the portfolio embed page and the relay. Known limitations now says the break loads from Vercel and YouTube, and notes the doubled captions.
+
+### Verified in a real Chrome (headless), through a local copy of the relay with the same logic as the snippet
+- **Default:**
+  - relay messages: `hello-ack`, `ready`, `state`;
+  - playing (state 1) and muted, with the video visible in the ad frame (screenshot);
+  - **Sound on** reported `muted: false`, and **Pause** reported state 2, with the buttons flipping to "Play" and "Sound off".
+- **Reduced motion:** the video started paused, with a **Play** button. Play reported state 1.
+- **Click-blocking:** a click at the centre of the video lands on Block's overlay, not the iframe.
+- **Relay unreachable:** no messages arrived, and after 8s the break showed The Pitch.
+- **Production build:** it contains the portfolio URL, and the local test URL isn't in it.
+- **Tests:** 74 unit tests pass, and the type check is clean.
+
+### Not verified yet
+- **The live portfolio page with the relay.** It isn't deployed yet. Until it is, the live page (which has no relay) plays behind the frame for 8 seconds, then Block falls back to The Pitch.
+- **YouTube's own captions:** they appeared over the muted video in testing, doubling the video's burned-in subtitles. The snippet adds `cc_load_policy=0`, which YouTube doesn't always honour.
