@@ -121,3 +121,13 @@ export function formatCountdown(ms: number): string {
   const s = Math.max(0, Math.ceil(ms / 1000));
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 }
+
+/**
+ * How much of the session has passed, 0–1, in whole minutes so the progress
+ * line moves once a minute rather than creeping every second.
+ */
+export function sessionProgress(session: ActiveSession, now: number): number {
+  const total = Math.max(1, Math.round((session.endsAt - session.startedAt) / 60_000));
+  const elapsed = Math.floor((now - session.startedAt) / 60_000);
+  return Math.min(1, Math.max(0, elapsed / total));
+}

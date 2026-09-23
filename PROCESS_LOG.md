@@ -351,3 +351,50 @@ Two scheduled back-to-back tasks, A at 09:49–09:50 allowing example.org and B 
 ### Not verified
 - **Full screen on macOS with a real, visible window.** Headless reports the state change only; the move to a separate Space needs a manual check.
 - **Pinterest itself while signed in.** The service-worker bypass is reproduced and fixed with a stand-in site, but Pinterest wasn't tested directly.
+
+---
+
+## 2026-09-23 — Step 3: The Blocked page
+
+### What I asked
+The Blocked page should be calm, not punishing. It shows:
+- the current task and its "why";
+- the time remaining;
+- the allowed sites as clickable links;
+- a quiet, secondary way to start the override, as a placeholder until step 5.
+
+The entrance should be gentle and use the motion tokens. I approved the proposed defaults: "<site> isn't part of this task.", "Open during this task" and "End this session early".
+
+### What was built
+- **Layout:** one centred column, in reading order:
+  - "<site> isn't part of this task." It shows the site's name only, never the full address.
+  - The task name as the main heading (4xl).
+  - The why, muted.
+  - "N min left · until 10:30 AM" with a thin progress line. It's the page's only use of colour besides links.
+  - "Open during this task": the allowed sites as same-tab links with favicons and a → that nudges on hover.
+  - "End this session early", small and muted, well below everything else.
+- **Progress line:** `sessionProgress()` measures from `startedAt` to `endsAt` in whole minutes, so the line moves once a minute instead of creeping every second.
+- **Session-over state:** "Your session is over. Nothing is blocked right now." plus **Continue to <site>** when the original URL is known.
+- **Handover:** the page crossfades to the next task.
+- **Tab title:** "<task> · Block" during a session, "Block" afterwards.
+- **Override placeholder:** `override.html` says "Ending a session early is coming soon." with "← Go back". Step 5 replaces it, and the link stays the same.
+- **Motion (signature moment 3):**
+  - The page fades in over `emphasized` with the `enter` easing.
+  - Each line rises 8px and fades in over `standard`, with an `instant` (100ms) gap between lines.
+  - The progress line grows over `emphasized` with the `standard` easing.
+  - Leaving uses the `exit` easing.
+  - With reduced motion, only the page fades and the progress line appears in place.
+- **Accessibility:**
+  - The task name is the page's main heading.
+  - Link text says where it goes.
+  - The countdown isn't announced (no live region), so screen readers aren't interrupted every minute.
+
+### Verified in a real Chrome (headless)
+- **Screenshots:**
+  - light mode, dark mode and reduced motion;
+  - mid-entrance, which shows the lines appearing in reading order;
+  - the override placeholder;
+  - the session-over state with "Continue to pinterest.com".
+- **Links:** they point to `https://notion.so`, `https://figma.com`, `https://docs.google.com` and `override.html`.
+- **Tab titles** switch correctly.
+- **Tests:** 39 unit tests pass, including the new `sessionProgress` test.

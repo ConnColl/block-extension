@@ -8,6 +8,7 @@ import {
   formatCountdown,
   liveSession,
   planRestore,
+  sessionProgress,
   shouldSweepTab,
 } from './session';
 import { isAllowedHost } from './domains';
@@ -138,5 +139,15 @@ describe('planRestore', () => {
       restore: [[2, 'https://notion.so/a']],
       keep: { '1': 'https://x.com/home' },
     });
+  });
+});
+
+describe('sessionProgress', () => {
+  const s = { taskId: 'x', startedAt: at('09:00'), endsAt: at('10:00'), source: 'manual' as const };
+  it('moves in whole minutes and stays within 0–1', () => {
+    expect(sessionProgress(s, at('09:00'))).toBe(0);
+    expect(sessionProgress(s, at('09:30') + 59_000)).toBe(0.5);
+    expect(sessionProgress(s, at('10:30'))).toBe(1);
+    expect(sessionProgress(s, at('08:00'))).toBe(0);
   });
 });
