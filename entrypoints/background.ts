@@ -21,6 +21,15 @@ import {
 } from '@/lib/session';
 import type { Request, Response } from '@/lib/messages';
 import {
+  outcomesItem,
+  overrideLogItem,
+  passesItem,
+  passesLeft,
+  spendPass,
+  type OverrideLogEntry,
+  type OverrideStage,
+} from '@/lib/override';
+import {
   STARTUP_GRACE_MS,
   TAB_LIMIT,
   countTabs,
@@ -95,7 +104,7 @@ async function startSession(task: Task, source: SessionSource) {
 
 /** End the session. If another task is due right now (back-to-back), hand straight over to it. */
 async function endSession(tasks: Task[], now: number) {
-  const next = findDueTask(tasks, now);
+  const next = findDueTask(tasks, now, await outcomesItem.getValue());
   if (next) {
     await startSession(next, 'scheduled');
     return;
@@ -128,7 +137,7 @@ async function reconcile({ catchUp }: { catchUp: boolean }) {
     await browser.alarms.create(END_ALARM, { when: session.endsAt });
   } else {
     await syncBlockRule(null);
-    const due = catchUp ? findDueTask(tasks, now) : undefined;
+    const due = catchUp ? findDueTask(tasks, now, await outcomesItem.getValue()) : undefined;
     if (due) await startSession(due, 'scheduled');
     session = await activeSessionItem.getValue();
   }
@@ -167,7 +176,7 @@ async function onStartAlarm(taskId: string) {
   await reconcile({ catchUp: false }); // ends a previous session (and hands over) if its end alarm hasn't fired yet
   if (!(await activeSessionItem.getValue())) {
     const task = (await tasksItem.getValue()).find((t) => t.id === taskId);
-    if (task && canStart(task, Date.now())) await startSession(task, 'scheduled');
+    if (task && canStart(task, Date.now(), await outcomesItem.getValue())) await startSession(task, 'scheduled');
   }
   await syncUpcoming(await tasksItem.getValue(), Date.now(), (await activeSessionItem.getValue())?.taskId);
 }
@@ -180,9 +189,57 @@ async function startManually(taskId: string): Promise<Response> {
   const tasks = await tasksItem.getValue();
   const task = tasks.find((t) => t.id === taskId);
   if (!task) return { ok: false, error: 'That task no longer exists.' };
+  if (task.id in (await outcomesItem.getValue())) return { ok: false, error: 'This task has already ended.' };
   if (!canStart(task, Date.now())) return { ok: false, error: 'This task’s time has already passed.' };
   await startSession(task, 'manual');
   await syncUpcoming(tasks, Date.now(), task.id);
+  return { ok: true };
+}
+
+async function logOverride(entry: Omit<OverrideLogEntry, 'at'>) {
+  const log = await overrideLogItem.getValue();
+  await overrideLogItem.setValue([...log, { at: Date.now(), ...entry }]);
+}
+
+/** Override with an emergency pass: spend it, log it, and end the session for good. */
+async function overrideWithPass(taskId: string): Promise<Response> {
+  const now = Date.now();
+  const session = liveSession(await activeSessionItem.getValue(), now);
+  if (!session || session.taskId !== taskId) return { ok: false, error: 'This session has already ended.' };
+  const record = await passesItem.getValue();
+  const left = passesLeft(record, now);
+  if (left === 0) return { ok: false, error: 'No emergency passes left this week.' };
+
+  const tasks = await tasksItem.getValue();
+  const task = tasks.find((t) => t.id === taskId);
+  await passesItem.setValue(spendPass(record, now));
+  await outcomesItem.setValue({ ...(await outcomesItem.getValue()), [taskId]: { outcome: 'overridden', at: now } });
+  await logOverride({
+    taskId,
+    taskName: task?.name ?? '',
+    method: 'pass',
+    result: 'ended',
+    stage: 'hold',
+    passesLeft: left - 1,
+  });
+  await endSession(tasks, now); // the outcome keeps this task from restarting
+  await syncUpcoming(tasks, now);
+  return { ok: true, passesLeft: left - 1 };
+}
+
+/** "Back to work" (or leaving) during an override attempt. */
+async function abandonOverride(taskId: string, stage: OverrideStage): Promise<Response> {
+  const now = Date.now();
+  const left = passesLeft(await passesItem.getValue(), now);
+  const task = (await tasksItem.getValue()).find((t) => t.id === taskId);
+  await logOverride({
+    taskId,
+    taskName: task?.name ?? '',
+    method: left > 0 ? 'pass' : 'confession',
+    result: 'abandoned',
+    stage,
+    passesLeft: left,
+  });
   return { ok: true };
 }
 
@@ -306,12 +363,19 @@ export default defineBackground(() => {
   browser.tabs.onRemoved.addListener((tabId) => void serial(() => forgetParkedTab(tabId)));
 
   browser.runtime.onMessage.addListener((message: Request, _sender, sendResponse) => {
-    if (message?.type === 'session/start') {
-      serial(() => startManually(message.taskId)).then(sendResponse, (err: unknown) =>
-        sendResponse({ ok: false, error: err instanceof Error ? err.message : 'Couldn’t start the session.' }),
-      );
-      return true; // keep the channel open for the async response
-    }
+    const handler =
+      message?.type === 'session/start'
+        ? () => startManually(message.taskId)
+        : message?.type === 'override/pass'
+          ? () => overrideWithPass(message.taskId)
+          : message?.type === 'override/abandon'
+            ? () => abandonOverride(message.taskId, message.stage)
+            : null;
+    if (!handler) return;
+    serial(handler).then(sendResponse, (err: unknown) =>
+      sendResponse({ ok: false, error: err instanceof Error ? err.message : 'Something went wrong.' }),
+    );
+    return true; // keep the channel open for the async response
   });
 
   // Every time the worker wakes: make sure nothing is stale.

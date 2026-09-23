@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { activeSessionItem, tasksItem, type Task } from './tasks';
 import { liveSession, type ActiveSession } from './session';
+import { outcomesItem, passesItem, passesLeft, type PassRecord, type TaskOutcome } from './override';
 
 /** Clock-tick interval for countdowns. A refresh rate, not a motion value. */
 const TICK_MS = 1000;
@@ -44,4 +45,24 @@ export function useFocus(now: number) {
   const session = liveSession(state.session, now);
   const task = session ? state.tasks?.find((t) => t.id === session.taskId) : undefined;
   return { ...state, session: task ? session : null, task };
+}
+
+/** Emergency passes left this week, kept live. `null` until loaded. */
+export function usePassesLeft(now: number): number | null {
+  const [record, setRecord] = useState<PassRecord | null | undefined>(undefined);
+  useEffect(() => {
+    passesItem.getValue().then(setRecord);
+    return passesItem.watch(setRecord);
+  }, []);
+  return record === undefined ? null : passesLeft(record, now);
+}
+
+/** Task outcomes (e.g. ended early), kept live. */
+export function useOutcomes(): Record<string, TaskOutcome> {
+  const [outcomes, setOutcomes] = useState<Record<string, TaskOutcome>>({});
+  useEffect(() => {
+    outcomesItem.getValue().then(setOutcomes);
+    return outcomesItem.watch(setOutcomes);
+  }, []);
+  return outcomes;
 }

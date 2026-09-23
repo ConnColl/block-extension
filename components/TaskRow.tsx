@@ -13,6 +13,8 @@ interface Props {
   startsIn?: string;
   /** No session running and this task hasn't ended yet. */
   startable: boolean;
+  /** Ended by an override. Stated neutrally. */
+  endedEarly?: boolean;
   onStart: () => void;
   /** Just added or restored — the accent marker settles back to neutral. */
   settling: boolean;
@@ -20,7 +22,7 @@ interface Props {
   onDelete: () => void;
 }
 
-export function TaskRow({ task, locked, remaining, startsIn, startable, settling, onStart, onEdit, onDelete }: Props) {
+export function TaskRow({ task, locked, remaining, startsIn, startable, endedEarly, settling, onStart, onEdit, onDelete }: Props) {
   return (
     <div className="flex gap-5 py-5">
       <div className="w-24 shrink-0 text-sm tabular-nums">
@@ -44,6 +46,8 @@ export function TaskRow({ task, locked, remaining, startsIn, startable, settling
         <p className="mt-0.5 text-sm text-muted">
           {locked && remaining ? (
             <span className="font-medium text-accent">In session · {remaining}</span>
+          ) : endedEarly ? (
+            <>{formatLength(task.start, task.end)} · Ended early</>
           ) : startsIn ? (
             <span className="font-medium text-accent">Focus begins in {startsIn}</span>
           ) : (

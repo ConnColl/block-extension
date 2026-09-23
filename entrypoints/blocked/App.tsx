@@ -96,7 +96,7 @@ export default function App() {
                     className="h-full origin-left rounded-full bg-accent"
                     initial={{ scaleX: reduce ? sessionProgress(session, now) : 0 }}
                     animate={{ scaleX: sessionProgress(session, now) }}
-                    transition={{ duration: duration.emphasized, ease: easing.standard }}
+                    transition={{ duration: duration.emphasized, ease: easing.linear }}
                   />
                 </div>
               </motion.div>

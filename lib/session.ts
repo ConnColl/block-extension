@@ -31,14 +31,17 @@ export function isToday(task: Task, now: number): boolean {
   return task.date === dateKey(new Date(now));
 }
 
+/** Task ids that already have an outcome (e.g. ended early by override). They never start again. */
+export type Finished = Record<string, unknown>;
+
 /** The task whose time block contains `now`, if any. Tasks never overlap, so there's at most one. */
-export function findDueTask(tasks: Task[], now: number): Task | undefined {
-  return tasks.find((t) => isToday(t, now) && taskStartMs(t) <= now && now < taskEndMs(t));
+export function findDueTask(tasks: Task[], now: number, finished: Finished = {}): Task | undefined {
+  return tasks.find((t) => !(t.id in finished) && isToday(t, now) && taskStartMs(t) <= now && now < taskEndMs(t));
 }
 
-/** A task can be started (early or on time) any time today before it ends. */
-export function canStart(task: Task, now: number): boolean {
-  return isToday(task, now) && now < taskEndMs(task);
+/** A task can be started (early or on time) any time today before it ends, unless it's already finished. */
+export function canStart(task: Task, now: number, finished: Finished = {}): boolean {
+  return !(task.id in finished) && isToday(task, now) && now < taskEndMs(task);
 }
 
 export function remainingMs(session: ActiveSession, now: number): number {

@@ -11,13 +11,14 @@ import {
   type TaskDraft,
 } from '@/lib/tasks';
 import { HEADS_UP_MS, canStart, formatCountdown, remainingMs, taskStartMs } from '@/lib/session';
-import { useFocus, useNow } from '@/lib/hooks';
+import { useFocus, useNow, useOutcomes } from '@/lib/hooks';
 import { send } from '@/lib/messages';
 import { dateKey, formatRemaining, formatToday, fromMinutes, toMinutes } from '@/lib/time';
 import { transition } from '@/lib/motion';
 import { TaskForm } from '@/components/TaskForm';
 import { TaskRow } from '@/components/TaskRow';
 import { UndoNotice, type UndoState } from '@/components/UndoNotice';
+import { DevSettings } from '@/components/DevSettings';
 import { useTabLimitNotices } from '@/lib/useTabLimitNotices';
 
 /** Suggest the next free hour: after the last task, or the next half hour from now. */
@@ -34,6 +35,7 @@ export default function App() {
   const reduce = useReducedMotion();
   const now = useNow();
   const { tasks: allTasks, session, loaded } = useFocus(now);
+  const outcomes = useOutcomes();
   const today = dateKey(new Date(now));
   const tasks = loaded && allTasks ? tasksOn(allTasks, today) : null;
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -189,7 +191,8 @@ export default function App() {
                           ? formatCountdown(taskStartMs(task) - now)
                           : undefined
                       }
-                      startable={!session && canStart(task, now)}
+                      startable={!session && canStart(task, now, outcomes)}
+                      endedEarly={outcomes[task.id]?.outcome === 'overridden'}
                       onStart={() => handleStart(task)}
                       settling={settlingId === task.id}
                       onEdit={() => {
@@ -204,6 +207,8 @@ export default function App() {
             </AnimatePresence>
           </ol>
         </section>
+
+        <DevSettings now={now} />
       </main>
 
       <UndoNotice notice={notice} onUndo={handleUndo} onDismiss={handleDismiss} />

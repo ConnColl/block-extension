@@ -35,6 +35,10 @@ describe('findDueTask', () => {
   it('ignores tasks from other days', () => {
     expect(findDueTask([task('09:00', '10:00', { date: '2026-09-22' })], at('09:30'))).toBeUndefined();
   });
+  it('skips tasks that already have an outcome (ended early)', () => {
+    expect(findDueTask(tasks, at('09:30'), { '09:00-10:00': {} })).toBeUndefined();
+    expect(canStart(tasks[1]!, at('09:30'), { '10:00-11:30': {} })).toBe(false);
+  });
   it('handles no tasks', () => {
     expect(findDueTask([], at('09:30'))).toBeUndefined();
   });

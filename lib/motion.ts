@@ -28,6 +28,8 @@ export const easing = {
   standard: [0.2, 0, 0, 1] as Bezier,
   enter: [0, 0, 0, 1] as Bezier,
   exit: [0.3, 0, 1, 1] as Bezier,
+  /** Only for motion that represents real time passing (hold fill, countdowns). Never for UI transitions. */
+  linear: [0, 0, 1, 1] as Bezier,
 } as const;
 
 /** No overshoot, ever. */

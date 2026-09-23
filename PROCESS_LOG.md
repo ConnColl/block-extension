@@ -503,3 +503,65 @@ Remove full screen on session start, for both manual and scheduled sessions. Kee
 ### Business model section
 - Recorded as written. It's not built.
 - It explains why the ad break parodies ads instead of selling them: the only sponsor is "Morning You".
+
+---
+
+## 2026-09-23 — Step 5a: Hold to confirm and emergency passes
+
+### What I asked
+Step 5 is built in three parts, and I test after each. **5a:**
+- the 3-second hold to confirm (signature moment 5): a slow, deliberate fill using the `deliberate` token, with no overshoot;
+- 3 emergency passes per week, shown as tokens that disappear when spent;
+- spending a pass ends the session;
+- the override log.
+
+### What was built
+- **`lib/override.ts`:**
+  - `PASSES_PER_WEEK = 3`, and a pass record `{ weekStart: Monday "YYYY-MM-DD", used }`.
+  - `passesLeft()` and `spendPass()` reset automatically when the Monday differs, so there's no reset alarm.
+  - `outcomesItem`: a per-task outcome (`overridden` now; `completed`/`missed` in step 6).
+  - `overrideLogItem`: entries of `{ at, taskId, taskName, method: pass|confession, result: ended|abandoned|outlasted, stage: hold|confession|ad-break, passesLeft }`.
+- **Ending early stays ended.** `findDueTask` and `canStart` skip tasks with an outcome. Without this, the overridden task would restart straight away (it's still inside its time block), and again when Chrome next started. "Start now" answers "This task has already ended.", and the plan row reads "… · Ended early", stated neutrally.
+- **Background messages** (run one at a time with the other session changes):
+  - `override/pass` checks that the session is live and a pass is left. It spends the pass, records the outcome, logs it and ends the session (tabs restored, blocking removed). It refuses when there are no passes left, even if the page were bypassed.
+  - `override/abandon` logs "Back to work" as abandoned, with its stage.
+- **`HoldButton`** (signature moment 5):
+  - A fill layer grows across the button over exactly `deliberate` (3s) with `easing.linear`, the new token, because the fill represents real time.
+  - Letting go early drains it over `quick` with the `exit` easing, and nothing happens.
+  - It always takes a full 3 seconds from empty.
+  - It works with a pointer (captured, so dragging off still counts as holding), touch, and holding Space or Enter. Key repeats are ignored, letting go of the key cancels, and losing focus cancels.
+  - A hidden progress bar is always there for screen readers.
+  - **Reduced motion:** no fill; a plain visible progress bar fills instead, still 3 seconds.
+- **Override page (`override.html`):**
+  - "End this session early?", the task, its why and the time left.
+  - **Back to work** is the big accent button. It goes back to the Blocked page, or to the first allowed site.
+  - Pass tokens (three rings) with "N emergency passes left this week · resets Monday", then **Hold to use a pass**.
+  - After the hold: "Session ended." The screen shows the tokens as they were, then the spent one fades and shrinks away (`exit` easing), with "2 emergency passes left this week." and **Open plan**. The last pass reads "That was your last emergency pass this week. They reset Monday."
+  - No passes left: "No emergency passes left this week. They reset Monday." and "Without a pass, this session runs until …". This is a placeholder until 5b adds the confession.
+  - With no session running: "No focus session is running."
+- **Blocked page:** the progress line now uses `easing.linear`, following the new principle.
+- **Developer settings** (collapsed, at the bottom of the plan page, labeled "These change your real data"):
+  - **Reset passes**;
+  - the latest 10 override-log entries.
+  - The short ad break and sample data arrive in 5c.
+
+### Verified in a real Chrome (headless)
+- **From the Blocked page,** "End this session early" opens the override page with the task, the why, the time left and 3 tokens.
+- **A 1.5s hold does nothing:** the session keeps running and no pass is used. The mid-hold screenshot shows the fill at about half, which confirms the linear easing.
+- **A full 3.3s mouse hold:**
+  - Result: "Session ended. 2 emergency passes left this week."
+  - Stored: `passes.used = 1`, and outcome `A: overridden`.
+  - "Start now" for A is refused, and the plan row shows "Ended early".
+- **A keyboard hold** (Space, then Enter) spends passes 2 and 3. The last shows "That was your last emergency pass this week."
+- **"Back to work"** keeps the session running and logs `abandoned at hold`.
+- **With no passes:** the page shows the no-passes state, and a direct `override/pass` message is refused ("No emergency passes left this week.").
+- **The log has four entries:**
+  - A: pass, ended, 2 left;
+  - B: pass, ended, 1 left;
+  - C: pass, abandoned;
+  - C: pass, ended, 0 left.
+- **Reduced motion:** a plain progress bar fills under the button.
+- **Tests:** 46 unit tests pass, including the weekly reset (Monday 00:00, across a month boundary) and finished tasks not restarting.
+
+### Note
+The test used overlapping tasks on purpose, so each override handed over to the next "due" task. The plan page never allows overlapping tasks, so in real use an override simply ends the session.
