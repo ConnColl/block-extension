@@ -39,7 +39,7 @@ The only way to end a session early, or to edit or delete the task in an active 
 
 1. **Hold to confirm.** Hold a button for 3 seconds (`deliberate` token). Releasing early cancels the override.
 2. **Emergency passes.** The user gets 3 passes per week. If one is left, holding spends it and the session ends immediately.
-3. **Confession (passes used up).** The user must type this sentence exactly, generated from the task: `I am choosing distraction over [task name]`. The field doesn't accept paste. Matching ignores capitalization, spaces at the start and end, and repeated spaces between words. Otherwise the words must match exactly, including the task name.
+3. **Confession (passes used up).** The user must type this sentence exactly, generated from the task: `I am choosing distraction over [task name]. Morning Me is sighing.` The field doesn't accept paste. Matching ignores capitalization, spaces at the start and end, and repeated spaces between words. Otherwise the words must match exactly, including the task name.
 4. **Unskippable "ad break."** After the confession, a fixed 10-minute ad break plays. The session only ends if the user sits through it.
    - The break is a sequence of short spots, labeled like TV: **"Ad 3 of 12 · Your break begins in 7:42"**. The spot count and lengths add up to exactly 10 minutes.
    - The spots rotate through:
@@ -57,6 +57,9 @@ The only way to end a session early, or to edit or delete the task in an active 
 
 Weekly reset: passes reset on Monday at 00:00 local time.
 The ad-break length, spot sequence and developer length are policy constants, not motion tokens. Keep them in one place (e.g. `lib/override.ts`).
+
+## Business model (for the case study — not for building)
+The ad break is ad inventory, but Block protects attention, the antithesis of ads. Selling a user's most vulnerable moment would break the product's promise. Monetization: Block Pro (analytics, calendar sync, AI planning, Mac app) and Block for Teams. The ad break is sponsored only by Morning You.
 
 ## Known limitations
 - **Browser only.** A Chrome extension can't block other apps or other browsers. Opening Safari, or Pinterest's desktop app, bypasses Block.
@@ -81,6 +84,7 @@ Easings:
 - `enter` cubic-bezier(0, 0, 0, 1)
 - `exit` cubic-bezier(0.3, 0, 1, 1)
 - `spring` { type: "spring", stiffness: 400, damping: 40 } — no overshoot, ever
+- `linear` cubic-bezier(0, 0, 1, 1) — **only** for motion that represents real time passing: the override hold fill and countdown/progress indicators. Never for UI transitions.
 
 ## Motion principles for Block
 1. **Calm over clever.** A focus tool never competes for attention.
@@ -89,6 +93,7 @@ Easings:
 4. **Friction is a feature.** The override is the one place motion is deliberately slow. The user should feel the time pass.
 5. **Entering focus should feel like a shift.** The session start is the signature moment: noticeable, quiet, and confident.
 6. **Closure without guilt.** Completing a task feels good; a missed task is noted neutrally.
+7. **Motion that represents real time is linear, so it never misrepresents how long something takes.**
 
 ## The six signature moments (priority for polish)
 1. Adding a task — time block settles into the schedule

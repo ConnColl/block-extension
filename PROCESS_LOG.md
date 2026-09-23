@@ -482,3 +482,24 @@ Remove full screen on session start, for both manual and scheduled sessions. Kee
 - **Background:** the full-screen code is removed: `enterFullscreen`, `exitFullscreen` and the saved window state.
 - **CLAUDE.md:** the full-screen bullet is removed from MVP item 2. The heads-up bullet stays.
 - **Checks:** type check, 42 tests and the build pass.
+
+---
+
+## 2026-09-23 — Decisions before step 5: linear token, business model, confession wording
+
+### What I asked
+- Add a **Business model** section to CLAUDE.md, for the case study only, not for building.
+- Add a `linear` motion token, used only for motion that represents real time passing. Add the principle: "Motion that represents real time is linear, so it never misrepresents how long something takes."
+- Change the confession to: "I am choosing distraction over [task name]. Morning Me is sighing."
+
+### Decision: the `linear` token
+**What:** `easing.linear` = cubic-bezier(0, 0, 1, 1). It's allowed **only** for motion that shows real time passing: the 3-second override hold fill and the countdown/progress indicators, such as the Blocked page's progress line. It's never for UI transitions.
+**Why:**
+- A hold-to-confirm fill is a clock. With the `standard` easing it would race through the first second and crawl through the last, so the fill would misrepresent time.
+- "Friction is a feature": the user should *feel* the three seconds pass honestly, not be tricked by a curve.
+- Keeping `linear` tied to real time preserves the rest of the motion system: transitions still use `standard`, `enter`, `exit` and `spring`.
+- **Knock-on change:** the Blocked page's progress line moves to `linear`, because it represents time.
+
+### Business model section
+- Recorded as written. It's not built.
+- It explains why the ad break parodies ads instead of selling them: the only sponsor is "Morning You".
