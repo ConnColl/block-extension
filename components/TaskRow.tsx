@@ -19,6 +19,8 @@ interface Props {
   nowFraction?: number;
   /** Ended by an override. Stated neutrally. */
   endedEarly?: boolean;
+  /** Marked completed (step 6; sample data for now). */
+  completed?: boolean;
   onStart: () => void;
   /** Just added or restored — the accent marker settles back to neutral. */
   settling: boolean;
@@ -26,7 +28,7 @@ interface Props {
   onDelete: () => void;
 }
 
-export function TaskRow({ task, locked, remaining, startsIn, startable, endedEarly, nowFraction, settling, onStart, onEdit, onDelete }: Props) {
+export function TaskRow({ task, locked, remaining, startsIn, startable, endedEarly, completed, nowFraction, settling, onStart, onEdit, onDelete }: Props) {
   return (
     <div className="flex gap-5 py-5">
       <div className="w-24 shrink-0 text-sm tabular-nums">
@@ -46,11 +48,20 @@ export function TaskRow({ task, locked, remaining, startsIn, startable, endedEar
       </div>
 
       <div className="min-w-0 flex-1">
-        <h3 className="text-base font-medium text-ink">{task.name}</h3>
+        <h3 className="text-base font-medium text-ink">
+          {task.name}
+          {task.sample && (
+            <span className="ml-2 rounded-full border border-line px-2 py-0.5 align-middle text-xs font-normal text-muted">
+              Sample
+            </span>
+          )}
+        </h3>
         {task.why && <p className="mt-0.5 text-sm text-ink/80">{task.why}</p>}
         <p className="mt-0.5 text-sm text-muted">
           {locked && remaining ? (
             <span className="font-medium text-accent">In session · {remaining}</span>
+          ) : completed ? (
+            <>{formatLength(task.start, task.end)} · Completed</>
           ) : endedEarly ? (
             <>{formatLength(task.start, task.end)} · Ended early</>
           ) : startsIn ? (

@@ -1,16 +1,21 @@
 import { useEffect, useState } from 'react';
 import { overrideLogItem, passesItem, type OverrideLogEntry } from '@/lib/override';
 import { usePassesLeft } from '@/lib/hooks';
+import { clearSampleData, devSettingsItem, fillSampleData, type DevSettings as Settings } from '@/lib/devSettings';
 
 const timeFmt = new Intl.DateTimeFormat(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit' });
 
-/**
- * Developer settings, for testing and demos. Collapsed and clearly labeled.
- * Step 5c adds the short ad break and sample data.
- */
+/** Developer settings, for testing and demos. Collapsed and clearly labeled. */
 export function DevSettings({ now }: { now: number }) {
   const passes = usePassesLeft(now);
   const [log, setLog] = useState<OverrideLogEntry[]>([]);
+  const [settings, setSettings] = useState<Settings | null>(null);
+  const [sampleMsg, setSampleMsg] = useState('');
+
+  useEffect(() => {
+    devSettingsItem.getValue().then(setSettings);
+    return devSettingsItem.watch(setSettings);
+  }, []);
 
   useEffect(() => {
     overrideLogItem.getValue().then(setLog);
@@ -23,6 +28,51 @@ export function DevSettings({ now }: { now: number }) {
         Developer settings
       </summary>
       <p className="mt-2 text-sm text-muted">For testing and demos. These change your real data.</p>
+
+      <label className="mt-6 flex items-center justify-between gap-4">
+        <span>
+          <span className="block text-sm font-medium">Short ad break</span>
+          <span className="block text-sm text-muted">The 10-minute ad break lasts 10 seconds (4 spots).</span>
+        </span>
+        <input
+          type="checkbox"
+          className="size-4 accent-[var(--accent)]"
+          checked={settings?.shortAdBreak ?? false}
+          disabled={!settings}
+          onChange={(e) => void devSettingsItem.setValue({ ...(settings ?? { shortAdBreak: false }), shortAdBreak: e.target.checked })}
+        />
+      </label>
+
+      <div className="mt-6 flex items-center justify-between gap-4">
+        <div>
+          <p className="text-sm font-medium">Sample data</p>
+          <p className="text-sm text-muted">
+            {sampleMsg || 'Completed tasks earlier this week, for the Testimonial. Labeled “Sample” everywhere.'}
+          </p>
+        </div>
+        <div className="flex shrink-0 gap-2">
+          <button
+            type="button"
+            onClick={async () => {
+              const n = await fillSampleData();
+              setSampleMsg(n ? `Added ${n} sample completed ${n === 1 ? 'task' : 'tasks'}.` : 'No free slots for sample tasks.');
+            }}
+            className="rounded-lg border border-line px-3 py-1.5 text-sm font-medium hover:bg-surface"
+          >
+            Fill
+          </button>
+          <button
+            type="button"
+            onClick={async () => {
+              const n = await clearSampleData();
+              setSampleMsg(`Removed ${n} sample ${n === 1 ? 'task' : 'tasks'}.`);
+            }}
+            className="rounded-lg border border-line px-3 py-1.5 text-sm font-medium hover:bg-surface"
+          >
+            Clear
+          </button>
+        </div>
+      </div>
 
       <div className="mt-6 flex items-center justify-between gap-4">
         <div>

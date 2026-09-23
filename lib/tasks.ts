@@ -19,6 +19,8 @@ export interface Task {
   /** Normalized domains, e.g. "notion.so". Subdomains are allowed implicitly. */
   allowedSites: string[];
   createdAt: number;
+  /** Created by the developer "Fill sample data" setting. Always labeled as sample in the UI. */
+  sample?: boolean;
 }
 
 export const tasksItem = storage.defineItem<Task[]>('local:tasks', {

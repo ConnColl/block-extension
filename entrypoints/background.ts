@@ -30,6 +30,13 @@ import {
   type OverrideStage,
 } from '@/lib/override';
 import {
+  AD_BREAK_MS,
+  AD_COMPLETE_TOLERANCE_MS,
+  AD_PORT,
+  DEV_AD_BREAK_MS,
+} from '@/lib/adbreak';
+import { devSettingsItem } from '@/lib/devSettings';
+import {
   STARTUP_GRACE_MS,
   TAB_LIMIT,
   countTabs,
@@ -129,6 +136,7 @@ async function reconcile({ catchUp }: { catchUp: boolean }) {
   const sessionTask = session ? tasks.find((t) => t.id === session!.taskId) : undefined;
 
   if (session && (isExpired(session, now) || !sessionTask)) {
+    await settleAdBreaks(session.taskId, 'outlasted');
     await endSession(tasks, now);
     session = await activeSessionItem.getValue();
   } else if (session && sessionTask) {
@@ -241,6 +249,78 @@ async function abandonOverride(taskId: string, stage: OverrideStage): Promise<Re
     passesLeft: left,
   });
   return { ok: true };
+}
+
+/**
+ * The ad break. The override page holds a port open for the whole break; the
+ * background times it, so the session only ends once the full break has really
+ * run. Leaving the page (close, reload, navigate) disconnects the port: the
+ * attempt is logged as abandoned and the next try starts over from Ad 1.
+ */
+type AdPortMessage = { type: 'start'; taskId: string } | { type: 'complete' } | { type: 'ping' };
+interface AdRun {
+  taskId: string;
+  startedAt: number;
+  durationMs: number;
+  settled: boolean;
+  port: Browser.runtime.Port;
+}
+const adRuns = new Set<AdRun>();
+
+/** Close out running ad breaks for a task: the session ended on its own, or the page left. */
+async function settleAdBreaks(taskId: string, result: 'outlasted' | 'abandoned', only?: AdRun) {
+  for (const run of only ? [only] : adRuns) {
+    if (run.settled || run.taskId !== taskId) continue;
+    run.settled = true;
+    const task = (await tasksItem.getValue()).find((t) => t.id === taskId);
+    await logOverride({
+      taskId,
+      taskName: task?.name ?? '',
+      method: 'confession',
+      result,
+      stage: 'ad-break',
+      passesLeft: passesLeft(await passesItem.getValue(), Date.now()),
+    });
+    if (result === 'outlasted') run.port.postMessage({ type: 'outlasted' });
+  }
+}
+
+async function onAdMessage(run: { current: AdRun | null }, port: Browser.runtime.Port, msg: AdPortMessage) {
+  const now = Date.now();
+  if (msg.type === 'start') {
+    const session = liveSession(await activeSessionItem.getValue(), now);
+    if (!session || session.taskId !== msg.taskId) return port.postMessage({ type: 'refused', error: 'This session has already ended.' });
+    if (passesLeft(await passesItem.getValue(), now) > 0) {
+      return port.postMessage({ type: 'refused', error: 'You still have an emergency pass. Use that instead.' });
+    }
+    const { shortAdBreak } = await devSettingsItem.getValue();
+    run.current = { taskId: msg.taskId, startedAt: now, durationMs: shortAdBreak ? DEV_AD_BREAK_MS : AD_BREAK_MS, settled: false, port };
+    adRuns.add(run.current);
+    port.postMessage({ type: 'started', startedAt: now, durationMs: run.current.durationMs });
+  } else if (msg.type === 'complete') {
+    const r = run.current;
+    if (!r || r.settled) return;
+    if (now - r.startedAt < r.durationMs - AD_COMPLETE_TOLERANCE_MS) {
+      return port.postMessage({ type: 'not-yet', remainingMs: r.durationMs - (now - r.startedAt) });
+    }
+    const session = liveSession(await activeSessionItem.getValue(), now);
+    if (!session || session.taskId !== r.taskId) return settleAdBreaks(r.taskId, 'outlasted', r);
+    r.settled = true;
+    const tasks = await tasksItem.getValue();
+    await outcomesItem.setValue({ ...(await outcomesItem.getValue()), [r.taskId]: { outcome: 'overridden', at: now } });
+    await logOverride({
+      taskId: r.taskId,
+      taskName: tasks.find((t) => t.id === r.taskId)?.name ?? '',
+      method: 'confession',
+      result: 'ended',
+      stage: 'ad-break',
+      passesLeft: 0,
+    });
+    await endSession(tasks, now);
+    await syncUpcoming(tasks, now);
+    port.postMessage({ type: 'ended' });
+  }
+  // 'ping' only keeps the worker awake during the break.
 }
 
 /**
@@ -376,6 +456,23 @@ export default defineBackground(() => {
       sendResponse({ ok: false, error: err instanceof Error ? err.message : 'Something went wrong.' }),
     );
     return true; // keep the channel open for the async response
+  });
+
+  browser.runtime.onConnect.addListener((port) => {
+    if (port.name !== AD_PORT) return;
+    const run: { current: AdRun | null } = { current: null };
+    port.onMessage.addListener((msg: AdPortMessage) => void serial(() => onAdMessage(run, port, msg)));
+    port.onDisconnect.addListener(() =>
+      void serial(async () => {
+        if (!run.current) return;
+        // The page may notice the session's end time before the end alarm fires and close
+        // first. If the session is over, the user outlasted it; otherwise they left.
+        const s = await activeSessionItem.getValue();
+        const over = !s || s.taskId !== run.current.taskId || isExpired(s, Date.now());
+        await settleAdBreaks(run.current.taskId, over ? 'outlasted' : 'abandoned', run.current);
+        adRuns.delete(run.current);
+      }),
+    );
   });
 
   // Every time the worker wakes: make sure nothing is stale.

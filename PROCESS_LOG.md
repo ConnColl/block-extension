@@ -784,3 +784,85 @@ The drafts:
 - **Blocked page:** "That's an outty task. In here, you're working on / “Buy anniversary gift.” / Ten years on Saturday / 18 min left · until 11:23 AM / etsy.com → uncommongoods.com → / 4 tabs waiting for your outty. / End this session early".
 - **Session end:** "Welcome back outty. / Your tabs are right where you left them. / Continue to pinterest.com".
 - **Checks:** 58 tests, the type check and the build pass.
+
+---
+
+## 2026-09-23 — Step 5c: The ad break
+
+### What I asked
+The 10-minute unskippable ad break, following the approved plan and the Override design:
+- **Spots,** made only from my own data, never real ads:
+  - The Pitch (the task and its why);
+  - The Countdown (live time left in the block);
+  - The Testimonial (tasks completed this week, as "Morning You ★★★★★" reviews);
+  - The Breathing Spot (one minute, a calm expanding circle);
+  - The Fine Print (tiny disclaimer-style humour);
+  - The Allowed Sites (one-click links).
+- **Frame:**
+  - header: "Ad 3 of 12 · Your break begins in 7:42";
+  - "Sponsored by Morning You";
+  - skip area: "Skip unavailable. You set this up for a reason.";
+  - "Back to work" always visible, as the easy choice.
+- **Rules:**
+  - leaving the page resets the countdown;
+  - if the session ends during the break: "Good news: you made it. Your session is over.";
+  - skip spots with no data;
+  - log abandoned attempts.
+- **Developer settings:** a 10-second ad break, reset passes, and sample data for demos.
+
+### What was built
+- **`lib/adbreak.ts`** (pure, unit-tested):
+  - Constants: `AD_BREAK_MS` (10 min), `AD_SPOT_COUNT` (12), `BREATHING_SPOT_MS` (60s), the developer break `DEV_AD_BREAK_MS` (10s, 4 spots), and the breathing pace (4s in, 6s out). These are policy constants, not motion tokens.
+  - `planAdBreak()`: the breathing spot is Ad 7; the other 11 slots cycle Pitch → Countdown → Testimonial → Fine Print → Allowed Sites, and the Testimonial drops out when there's no data. Each other spot is about 49.09s, with rounding leftovers given to the last spot so the total is exactly 600,000 ms. The same kind never plays twice in a row, and repeated kinds use varied copy.
+  - `spotAt()`: which spot is playing at a given moment.
+  - `completedThisWeek()`: real completions only, from Monday 00:00.
+  - `FINE_PRINT` lines.
+- **Background (port `ad-break`):**
+  - The override page opens a port and sends `start`. The background checks that the session is live, that it's the confession path (0 passes), and the developer setting, then records `startedAt` and the duration.
+  - The page sends `complete` when its clock says done. The background ends the session only if the full time has passed (1s tolerance); otherwise it answers `not-yet`.
+  - On success, the task's outcome is `overridden`, the log records `confession, ended @ ad-break`, the session ends (tabs restored) and the page is told `ended`.
+  - **Leaving the page** (disconnect) logs `abandoned @ ad-break`, and the next attempt starts from Ad 1.
+  - **The session ending on its own** logs `outlasted`. That's detected either at reconcile time or when the page disconnects after the session's end time.
+  - The page pings every 20s to keep the worker awake during the break.
+- **`AdBreak` + `AdSpots` components:**
+  - **Header:** "Ad N of 12 · Your break begins in m:ss", with a screen-reader live line such as "Ad 3 of 12: The Testimonial".
+  - **Frame:** an "AD" chip; a thin per-spot progress line that runs the spot's length (`linear`, since it's real time, and hidden with reduced motion); spots crossfade (`enter` in, `exit` out); "Sponsored by Morning You" bottom-left; and a disabled-looking skip box bottom-right with the exact line.
+  - **The Pitch:** "Now showing" / "Still showing" / "Back by popular demand", the task as the headline, the why in quotes, and "Only in this tab. Only for a limited time."
+  - **The Countdown:** "Limited time only", a big m:ss of the block's remaining time, and "left in “task” · ends 11:59 PM".
+  - **The Testimonial:** "What people are saying", up to 3 review cards ("★★★★★ / “Task. Done.” / Morning You · Tuesday"), "N tasks completed this week", and a **Sample data** chip whenever sample tasks are shown.
+  - **The Breathing Spot:** "A word from your lungs", a circle growing (4s in) and shrinking (6s out) on the `standard` easing, and "Breathe in…" / "Breathe out…". With reduced motion it shows the text cues only, in a larger size.
+  - **The Fine Print:** two rotating lines plus "Offer valid until <end>. Void where focus is prohibited. Morning You makes no guarantees, only plans."
+  - **The Allowed Sites:** "Also available in this tab", one-click links with favicons, and "One click. No break required."
+- **Override page:**
+  - "Release me" now leads into the ad break, and the "Noted." placeholder is gone.
+  - The frame widens to `max-w-3xl` during the break, with the top bar still showing "Focusing on <task> · Back to work".
+  - The task is pinned for the break, so the page keeps working if the session ends under it.
+  - **End screens:**
+    - "Welcome back outty. Your tabs are right where you left them." when the break completes;
+    - "Good news: you made it. Your session is over." when the session is outlasted;
+    - a plain error if the background refuses to start the break.
+- **Developer settings:**
+  - **Short ad break** toggle.
+  - **Sample data: Fill / Clear.** Fill adds up to 5 completed sample tasks earlier this week, or earlier today on a Monday, in free slots only. Every one is marked `sample: true` and shows a **Sample** chip on the plan page, per the honesty rules. Clear removes them and their outcomes.
+  - **Reset passes** and the override log, as before.
+- **Plan page:** completed tasks read "… · Completed".
+- **CLAUDE.md:** the Override design lists the six spots, the order rules and the background-timed completion.
+
+### What went wrong
+- **An outlasted break was logged as abandoned.** The page's own clock can notice the session's end time before the background's end alarm fires. The page then shows "Good news…" and closes its port, and the background treated the disconnect as leaving.
+- **Fix:** on disconnect, if the session is gone or past its end time, log `outlasted`.
+- **Verified with a real end-of-task alarm:** the log reads `confession outlasted@ad-break`.
+
+### Verified in a real Chrome (headless)
+- **Full break:** "Ad 1 of 12 · Your break begins in 10:00".
+- **Stepping through by shifting only the page's clock:** Pitch, Countdown, Testimonial, Fine Print, Allowed Sites, Pitch, **Breathing (Ad 7)**, Countdown, Testimonial, Fine Print, Allowed Sites, Pitch. Screenshots were reviewed for the Pitch, Testimonial (with the Sample data chip), Fine Print and Breathing.
+- **Anti-cheat:** jumping the page's clock past the end made the page send `complete` early. The background refused, and the session kept running.
+- **Reloading mid-break** returned the page to "End this session early?" and logged `abandoned @ ad-break`. The next attempt started at Ad 1.
+- **The developer 10-second break** played Pitch, Countdown, Breathing, Testimonial, then "Welcome back outty…". The session ended, the outcome is `overridden`, and the log reads `confession ended @ ad-break`.
+- **"Back to work" in the top bar** during a break went back to the Blocked page and logged a single `abandoned @ ad-break`.
+- **Tests:** 66 unit tests pass: the plan adds up to exactly 10 minutes, one 60s breathing spot at Ad 7, the Testimonial is skipped without data, no repeats back-to-back, variants, the 10-second developer plan, `spotAt` and `completedThisWeek`.
+
+### Not verified / known limits
+- **A real, uninterrupted 10-minute run** in a visible window. Covered by the clock-shift tour, the anti-cheat check and the 10-second run.
+- **If Chrome kills the background worker mid-break** despite the pings, the port drops and the break resets. It's logged as abandoned, so the user would have to start over.
+- **The Testimonial needs completed tasks,** which step 6 creates. Until then, it only appears with sample data.

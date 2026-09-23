@@ -159,6 +159,7 @@ export default function App() {
             }
             startable={!session && canStart(task, now, outcomes)}
             endedEarly={outcomes[task.id]?.outcome === 'overridden'}
+            completed={outcomes[task.id]?.outcome === 'completed'}
             nowFraction={nowFraction}
             onStart={() => handleStart(task)}
             settling={settlingId === task.id}

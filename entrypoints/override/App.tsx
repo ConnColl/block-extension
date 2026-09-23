@@ -10,6 +10,9 @@ import { duration, durationMs, easing, transition } from '@/lib/motion';
 import { useTabLimitNotices } from '@/lib/useTabLimitNotices';
 import { HoldButton } from '@/components/HoldButton';
 import { Confession } from '@/components/Confession';
+import { AdBreak, type AdBreakResult } from '@/components/AdBreak';
+import { useOutcomes } from '@/lib/hooks';
+import type { Task } from '@/lib/tasks';
 import { copy } from '@/lib/copy';
 
 const PLAN_URL = browser.runtime.getURL('/plan.html');
@@ -17,7 +20,8 @@ const PLAN_URL = browser.runtime.getURL('/plan.html');
 type Stage =
   | { kind: 'decide' }
   | { kind: 'confess'; line: string }
-  | { kind: 'confessed' }
+  | { kind: 'ad'; task: Task }
+  | { kind: 'ad-over'; result: AdBreakResult }
   | { kind: 'ended'; passesLeft: number }
   | { kind: 'error'; message: string };
 
@@ -30,7 +34,8 @@ export default function App() {
   useTabLimitNotices();
   const reduce = useReducedMotion();
   const now = useNow();
-  const { session, task, loaded } = useFocus(now);
+  const { session, task: liveTask, tasks, loaded } = useFocus(now);
+  const outcomes = useOutcomes();
   const passes = usePassesLeft(now);
   const [stage, setStage] = useState<Stage>({ kind: 'decide' });
 
@@ -47,11 +52,14 @@ export default function App() {
     exit: { opacity: 0, transition: transition.exit },
   };
 
-  const attemptStage: OverrideStage =
-    stage.kind === 'confess' ? 'confession' : stage.kind === 'confessed' ? 'ad-break' : 'hold';
+  // During the ad break the task is pinned: the session may end under it (outlasted).
+  const task = stage.kind === 'ad' ? stage.task : liveTask;
+
+  const attemptStage: OverrideStage = stage.kind === 'confess' ? 'confession' : 'hold';
 
   async function backToWork() {
-    if (task) await send({ type: 'override/abandon', taskId: task.id, stage: attemptStage });
+    // In the ad break, leaving the page closes its port and the background logs the abandon.
+    if (task && stage.kind !== 'ad') await send({ type: 'override/abandon', taskId: task.id, stage: attemptStage });
     // Back to the Blocked page (which lists the task's sites), or straight to the first allowed site.
     if (history.length > 1) history.back();
     else if (task?.allowedSites[0]) location.assign(`https://${task.allowedSites[0]}`);
@@ -64,14 +72,14 @@ export default function App() {
   }
 
   const view =
-    stage.kind === 'ended'
-      ? 'ended'
+    stage.kind === 'ended' || stage.kind === 'ad' || stage.kind === 'ad-over'
+      ? stage.kind
       : !loaded || passes === null
         ? null
         : !session || !task
           ? 'none'
-          : stage.kind === 'confess' || stage.kind === 'confessed'
-            ? stage.kind
+          : stage.kind === 'confess'
+            ? 'confess'
             : 'decide';
 
   const backToWorkButton = (
@@ -92,7 +100,7 @@ export default function App() {
         placed under the form, it was clicked by accident where a submit button usually sits.
       */}
       <AnimatePresence>
-        {(view === 'confess' || view === 'confessed') && task && (
+        {(view === 'confess' || view === 'ad') && task && (
           <motion.header
             key="top-bar"
             initial={{ opacity: 0, y: reduce ? 0 : -8 }}
@@ -100,7 +108,9 @@ export default function App() {
             exit={{ opacity: 0, transition: transition.exit }}
             className="fixed inset-x-0 top-0 z-10 border-b border-line bg-bg"
           >
-            <div className="mx-auto flex max-w-md items-center justify-between gap-4 px-6 py-3">
+            <div
+              className={`mx-auto flex items-center justify-between gap-4 px-6 py-3 ${view === 'ad' ? 'max-w-3xl' : 'max-w-md'}`}
+            >
               <p className="min-w-0 truncate text-sm text-muted">
                 Focusing on <span className="font-medium text-ink">{task.name}</span>
               </p>
@@ -115,7 +125,9 @@ export default function App() {
           </motion.header>
         )}
       </AnimatePresence>
-      <div className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-center py-20">
+      <div
+        className={`mx-auto flex min-h-screen w-full flex-col justify-center py-20 ${view === 'ad' ? 'max-w-3xl' : 'max-w-md'}`}
+      >
         <AnimatePresence mode="wait">
           {view === 'decide' && session && task && passes !== null && (
             <motion.div key="decide" variants={container} initial="hidden" animate="show" exit="exit">
@@ -178,22 +190,67 @@ export default function App() {
               <motion.div variants={item} className="mt-8">
                 <Confession
                   sentence={stage.line}
-                  onConfirm={() => setStage({ kind: 'confessed' })}
+                  onConfirm={() => setStage({ kind: 'ad', task })}
                 />
               </motion.div>
             </motion.div>
           )}
 
-          {view === 'confessed' && task && (
-            <motion.div key="confessed" variants={container} initial="hidden" animate="show" exit="exit">
-              <motion.h1 variants={item} className="text-3xl leading-tight font-semibold tracking-tight">
-                Noted.
-              </motion.h1>
-              <motion.p variants={item} className="mt-3 text-base text-muted">
-                {/* Step 5c replaces this with the 10-minute ad break. */}
-                Next comes a 10-minute ad break. It isn’t built yet, so this session keeps running until{' '}
-                {formatTime(task.end)}.
-              </motion.p>
+          {view === 'ad' && stage.kind === 'ad' && tasks && (
+            <motion.div
+              key="ad"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1, transition: transition.enter }}
+              exit={{ opacity: 0, transition: transition.exit }}
+            >
+              <AdBreak
+                task={stage.task}
+                session={session}
+                tasks={tasks}
+                outcomes={outcomes}
+                onFinish={(result) => setStage({ kind: 'ad-over', result })}
+              />
+            </motion.div>
+          )}
+
+          {view === 'ad-over' && stage.kind === 'ad-over' && (
+            <motion.div key="ad-over" variants={container} initial="hidden" animate="show" exit="exit">
+              {stage.result.kind === 'outlasted' ? (
+                <>
+                  <motion.h1 variants={item} className="text-3xl leading-tight font-semibold tracking-tight">
+                    Good news: you made it.
+                  </motion.h1>
+                  <motion.p variants={item} className="mt-3 text-lg text-muted">
+                    Your session is over.
+                  </motion.p>
+                </>
+              ) : stage.result.kind === 'ended' ? (
+                <>
+                  <motion.h1 variants={item} className="text-3xl leading-tight font-semibold tracking-tight">
+                    {copy.welcomeTitle}
+                  </motion.h1>
+                  <motion.p variants={item} className="mt-3 text-lg text-muted">
+                    {copy.welcomeBody}
+                  </motion.p>
+                </>
+              ) : (
+                <>
+                  <motion.h1 variants={item} className="text-3xl leading-tight font-semibold tracking-tight">
+                    The ad break didn’t start.
+                  </motion.h1>
+                  <motion.p variants={item} className="mt-3 text-lg text-muted">
+                    {stage.result.error}
+                  </motion.p>
+                </>
+              )}
+              <motion.div variants={item} className="mt-10">
+                <a
+                  href={PLAN_URL}
+                  className="inline-block rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-accent-ink hover:opacity-90"
+                >
+                  Open plan
+                </a>
+              </motion.div>
             </motion.div>
           )}
 

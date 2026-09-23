@@ -52,13 +52,18 @@ The only way to end a session early, or to edit or delete the task in an active 
    - During the confession and the ad break, **"Back to work"** sits in a top bar: prominent, always visible, and out of the submit path.
 4. **Unskippable "ad break."** After the confession, a fixed 10-minute ad break plays. The session only ends if the user sits through it.
    - The break is a sequence of short spots, labeled like TV: **"Ad 3 of 12 · Your break begins in 7:42"**. The spot count and lengths add up to exactly 10 minutes.
-   - The spots rotate through:
-     - the task and its "why" (if one was set);
-     - the time remaining in the block;
-     - the tasks completed this week (real data only; this spot is left out until task completion exists);
-     - a one-minute breathing spot.
-   - **"Back to work"** is always available. It cancels the override and returns to the task.
+   - The spots are built only from the user's own data, never real ads. Spots with no data are skipped:
+     - **The Pitch:** the task and its why.
+     - **The Countdown:** the live time left in the block.
+     - **The Testimonial:** tasks completed this week, styled as reviews ("★★★★★ '<task>. Done.' — Morning You · Tuesday"). It's skipped when there are no completions; sample data is always labeled "Sample data".
+     - **The Breathing Spot:** one minute of a calm expanding circle, using the `standard` easing at a 4s-in / 6s-out breathing pace. With reduced motion it shows text cues only.
+     - **The Fine Print:** tiny disclaimer-style humour. Self-aware, never cruel.
+     - **The Allowed Sites:** one-click links.
+   - The breathing spot is Ad 7. The other slots cycle through the remaining kinds, and the same kind never plays twice in a row.
+   - "Sponsored by Morning You" sits bottom-left of the frame.
+   - **"Back to work"** is always available, in the top bar (see the confession usability finding). It cancels the override and returns to the task.
    - Leaving the page resets the countdown: closing the tab, navigating away or reloading starts the break over from Ad 1.
+   - The background times the break over a port the page holds open. The session ends only when the background confirms the full time has run (1s tolerance), so a page that claims it's done early is refused.
    - The skip area reads exactly: **"Skip unavailable. You set this up for a reason."**
    - When the break finishes, the session ends.
    - **If the session reaches its end time during the break**, the break stops and shows: **"Good news: you made it. Your session is over."** The session ends normally, not as an override.
