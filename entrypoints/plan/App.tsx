@@ -21,6 +21,7 @@ import { TaskRow } from '@/components/TaskRow';
 import { UndoNotice, type UndoState } from '@/components/UndoNotice';
 import { DevSettings } from '@/components/DevSettings';
 import { copy } from '@/lib/copy';
+import { DoneFlow } from '@/components/DoneFlow';
 import { useTabLimitNotices } from '@/lib/useTabLimitNotices';
 
 const minutesOfDay = (ms: number) => {
@@ -162,6 +163,27 @@ export default function App() {
             endedEarly={outcomes[task.id]?.outcome === 'overridden'}
             completed={outcomes[task.id]?.outcome === 'completed'}
             doneEarly={!!outcomes[task.id]?.early}
+            done={
+              session && isTaskLocked(task.id, session) ? (
+                <DoneFlow
+                  key={task.id}
+                  compact
+                  session={session}
+                  task={task}
+                  tasks={tasks}
+                  outcomes={outcomes}
+                  now={now}
+                  onDone={(r) =>
+                    showNotice(
+                      r.kind === 'took-time-back'
+                        ? `You earned ${r.earnedMinutes} ${r.earnedMinutes === 1 ? 'minute' : 'minutes'}.`
+                        : `Now: ${r.name}, until ${formatTime(r.end)}.`,
+                      false,
+                    )
+                  }
+                />
+              ) : undefined
+            }
             missed={outcomes[task.id]?.outcome === 'missed' && !outcomes[task.id]?.pending}
             ask={
               nowFraction === undefined &&

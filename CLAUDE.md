@@ -33,7 +33,7 @@ When in doubt, cut scope — never ship something half-working.
 5. **Override**: intentionally slow, and more costly the more it's used. See **Override design** below.
 6. **Task completion**: at session end, ask "Did you finish?" Mark complete or missed. A task that ends without an answer is marked missed.
    - **Where it's asked:** an in-page notice on the page the user is on ("Welcome back outty. Did you finish '[task]'?" with Yes, finished / Not this time), the Blocked page's session-over state, the popup, and the plan row for any past task not yet answered. It stays marked missed until the user answers Yes.
-   - **Finishing early:** during a session, a **Done** button in the popup and on the Blocked page. No friction, just a light check: "Done already? 16 of 60 minutes." then "Yes, done." Then two choices:
+   - **Finishing early:** during a session, a **Done** button in the popup, on the Blocked page, and on the running task's row in the Morning Plan. No friction, just a light check: "Done already? 16 of 60 minutes." then "Yes, done." Then two choices:
      - **Start next task now:** the next task starts immediately and keeps its planned length. Later tasks stay where they are.
      - **Take the time back:** blocking ends until the next task's scheduled start, with "You earned 44 minutes."
      - With no next task, only "Take the time back" is offered.

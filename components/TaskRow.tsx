@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { motion } from 'motion/react';
 import type { Task } from '@/lib/tasks';
 import { formatLength, formatTime } from '@/lib/time';
@@ -28,6 +29,8 @@ interface Props {
   missed?: boolean;
   /** Time has passed with no answer yet: ask "Did you finish?". */
   ask?: boolean;
+  /** The Done flow, shown on the task in session. */
+  done?: ReactNode;
   onStart: () => void;
   /** Just added or restored — the accent marker settles back to neutral. */
   settling: boolean;
@@ -35,7 +38,7 @@ interface Props {
   onDelete: () => void;
 }
 
-export function TaskRow({ task, locked, remaining, startsIn, startable, endedEarly, completed, doneEarly, missed, ask, nowFraction, settling, onStart, onEdit, onDelete }: Props) {
+export function TaskRow({ task, locked, remaining, startsIn, startable, endedEarly, completed, doneEarly, missed, ask, done, nowFraction, settling, onStart, onEdit, onDelete }: Props) {
   return (
     <div className="flex gap-5 py-5">
       <div className="w-24 shrink-0 text-sm tabular-nums">
@@ -96,6 +99,7 @@ export function TaskRow({ task, locked, remaining, startsIn, startable, endedEar
             </li>
           ))}
         </ul>
+        {done && <div className="mt-4">{done}</div>}
         {ask && (
           <div className="mt-3">
             <FinishedQuestion compact taskId={task.id} taskName={task.name} />

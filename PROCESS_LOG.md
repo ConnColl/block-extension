@@ -980,3 +980,24 @@ When a task is finished early, ended by override, or marked done, its remaining 
   - A new task at 11:33–11:58 now fits, and the form suggests 11:30.
   - A task overridden before the fix was repaired to 10:58–11:08.
   - Both rows read "… · Ended early" with their real times.
+
+---
+
+## 2026-09-23 — Done from the Morning Plan
+
+### What I asked
+There should be a way to select Done in the Morning Plan view, not only by opening a blocked tab.
+
+### What changed
+- **The running task's row** in the plan (the "In session · Locked" row) now includes the same `DoneFlow` as the popup and the Blocked page:
+  1. **Done**
+  2. "Done already? N of M minutes." with **Yes, done.**
+  3. The checkmark, then **Start next task now** / **Take the time back**
+- **The result** ("You earned N minutes." or "Now: <task>, until <time>.") appears in the page's existing bottom notice, because the row moves to "Earlier today" once it's done.
+- `TaskRow` gets a `done` slot. CLAUDE.md MVP item 6 lists the plan row as a place Done appears.
+
+### Verified in a real Chrome (headless)
+- **From the plan page:** Done → "Yes, done." → the choices appear on the row (screenshot) → Take the time back.
+- **Result:** "You earned 49 minutes." The session ended, and the task's end moved from 12:59 to 12:09, with the outcome `completed, early, plannedEnd 12:59`.
+- **Why 49, not 50:** the test's session started 37 seconds into a minute, so the block was 59 minutes, not 60.
+- **Tests:** 74 unit tests pass.
