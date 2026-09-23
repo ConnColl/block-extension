@@ -632,3 +632,34 @@ Not built yet; this is part of step 5b.
 
 ### Not yet logged
 Leaving the page during the confession, for example by closing the tab, isn't logged yet. 5c adds a live connection to the background worker that logs a departure as abandoned and resets the ad break.
+
+---
+
+## 2026-09-23 — Usability finding: "Back to work" in the submit path
+
+### Finding (from my own testing of 5b)
+After typing the confession, I **accidentally clicked "Back to work"**. It sat right below the form, where a submit button usually is, so my hand went there on autopilot. The prominent, easy choice had become a trap in the one place people are primed to click "go".
+
+### Change
+- **"Back to work" moves to a top bar** on the confession screen, and will stay there through the ad break. The bar reads "Focusing on <task>" with the accent **Back to work** button on the right. It's still prominent and always visible, but it's no longer where a submit button would be.
+- **The submit button reads "Release me".**
+  - Before a match: disabled and quiet (outlined, muted text).
+  - On a match: it turns the accent colour, and a small ✓ appears (`quick` token; colour via the Tailwind transition defaults, also `quick`).
+  - Screen readers hear "Matches. Press Enter to continue."
+  - Enter submits.
+- **The task name is in quotes:** "I am voluntarily entering the scroll hole. “Write the case study intro” can wait." The quotes set the task apart from the joke line. Typing them is optional, since quotes are ignored when matching.
+- The quiet "Matches." text is gone; the button's state carries that message now.
+
+### Why this matters
+- **The friction belongs in the typing, not in the layout.** A mis-click that throws away a finished confession is a gotcha, which is punishment, not friction.
+- **A button's position is a promise.** The bottom-right of a form means "submit", so the escape hatch shouldn't sit there.
+- **Moving "Back to work" to the top keeps the ethics intact.** The easy way back stays visible the whole time, without competing with the action the user chose.
+
+### Verified in a real Chrome (headless)
+- The top bar shows "Focusing on Review Maya's deck · Back to work" on the confession and "Noted." screens.
+- "Release me" stays disabled until the text matches, then turns accent with ✓. Enter submits.
+- The sentence renders with curly quotes around the task name, and matches when typed without quotes.
+- "Back to work" from the top bar still logs abandoned attempts with the correct stage.
+- **Tests:** 52 unit tests pass, including that typing the quotes is optional.
+
+**CLAUDE.md** Override design item 3 is updated: quotes, the "Release me" behaviour, and the top-bar placement.

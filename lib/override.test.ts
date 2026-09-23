@@ -42,8 +42,12 @@ describe('passes', () => {
 describe('confession', () => {
   const target = buildConfession('I am voluntarily entering the scroll hole.', 'Write the case study intro');
 
-  it('builds "<line> <task> can wait."', () => {
-    expect(target).toBe('I am voluntarily entering the scroll hole. Write the case study intro can wait.');
+  it('builds "<line> “<task>” can wait."', () => {
+    expect(target).toBe('I am voluntarily entering the scroll hole. “Write the case study intro” can wait.');
+  });
+  it("doesn't require typing the quotes", () => {
+    expect(confessionMatches('I am voluntarily entering the scroll hole. Write the case study intro can wait.', target)).toBe(true);
+    expect(confessionMatches('I am voluntarily entering the scroll hole. "Write the case study intro" can wait.', target)).toBe(true);
   });
   it('ignores capitalization, punctuation and extra spaces', () => {
     expect(confessionMatches('i am voluntarily entering the scroll hole write the case study intro can wait', target)).toBe(true);

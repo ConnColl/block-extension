@@ -62,26 +62,31 @@ export function Confession({ sentence, onConfirm }: Props) {
         {pasteHint ? 'Pasting is off. Type it out; that’s the point.' : 'Capitals and punctuation don’t matter.'}
       </p>
 
-      <div className="mt-6 flex items-center gap-4">
+      <div className="mt-6">
         <button
           type="submit"
           disabled={!matches}
-          className="rounded-lg border border-line px-4 py-2 text-sm font-medium text-ink transition-opacity enabled:hover:bg-surface disabled:opacity-40"
+          className={`inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
+            matches ? 'border-accent bg-accent text-accent-ink hover:opacity-90' : 'border-line text-muted'
+          }`}
         >
-          Continue
+          <AnimatePresence initial={false}>
+            {matches && (
+              <motion.span
+                aria-hidden="true"
+                initial={{ opacity: 0, scale: 0.6 }}
+                animate={{ opacity: 1, scale: 1, transition: transition.quick }}
+                exit={{ opacity: 0, transition: transition.exit }}
+              >
+                ✓
+              </motion.span>
+            )}
+          </AnimatePresence>
+          Release me
         </button>
-        <AnimatePresence>
-          {matches && (
-            <motion.span
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1, transition: transition.enter }}
-              exit={{ opacity: 0, transition: transition.exit }}
-              className="text-sm text-muted"
-            >
-              Matches.
-            </motion.span>
-          )}
-        </AnimatePresence>
+        <span aria-live="polite" className="sr-only">
+          {matches ? 'Matches. Press Enter to continue.' : ''}
+        </span>
       </div>
     </form>
   );

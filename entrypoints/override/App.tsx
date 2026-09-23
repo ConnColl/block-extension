@@ -85,6 +85,35 @@ export default function App() {
 
   return (
     <main className="min-h-screen bg-bg px-6 font-sans text-ink">
+      {/*
+        During the confession (and the ad break), "Back to work" lives in a top bar:
+        prominent and always visible, but out of the submit path. Usability finding:
+        placed under the form, it was clicked by accident where a submit button usually sits.
+      */}
+      <AnimatePresence>
+        {(view === 'confess' || view === 'confessed') && task && (
+          <motion.header
+            key="top-bar"
+            initial={{ opacity: 0, y: reduce ? 0 : -8 }}
+            animate={{ opacity: 1, y: 0, transition: transition.enter }}
+            exit={{ opacity: 0, transition: transition.exit }}
+            className="fixed inset-x-0 top-0 z-10 border-b border-line bg-bg"
+          >
+            <div className="mx-auto flex max-w-md items-center justify-between gap-4 px-6 py-3">
+              <p className="min-w-0 truncate text-sm text-muted">
+                Focusing on <span className="font-medium text-ink">{task.name}</span>
+              </p>
+              <button
+                type="button"
+                onClick={backToWork}
+                className="shrink-0 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-accent-ink transition-opacity hover:opacity-90"
+              >
+                Back to work
+              </button>
+            </div>
+          </motion.header>
+        )}
+      </AnimatePresence>
       <div className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-center py-20">
         <AnimatePresence mode="wait">
           {view === 'decide' && session && task && passes !== null && (
@@ -151,9 +180,6 @@ export default function App() {
                   onConfirm={() => setStage({ kind: 'confessed' })}
                 />
               </motion.div>
-              <motion.div variants={item} className="mt-12">
-                {backToWorkButton}
-              </motion.div>
             </motion.div>
           )}
 
@@ -167,9 +193,6 @@ export default function App() {
                 Next comes a 10-minute ad break. It isn’t built yet, so this session keeps running until{' '}
                 {formatTime(task.end)}.
               </motion.p>
-              <motion.div variants={item} className="mt-10">
-                {backToWorkButton}
-              </motion.div>
             </motion.div>
           )}
 
