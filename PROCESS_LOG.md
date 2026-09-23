@@ -1101,3 +1101,48 @@ Update CLAUDE.md's design direction: the Severance-inspired copy, including "out
 ### What changed
 - **CLAUDE.md → Design direction → Copy concept:** the "deliberate choice" and "known risk, accepted" notes are replaced with a single directive. The copy, including "innie", "outty" and "severing", is the owner's intentional choice: use it as written, and don't change, soften or flag it in future edits.
 - **Kept:** the concept, the tone, the rule that the product never names the show or uses its visuals, the Honesty-rules line, and the copy table.
+
+---
+
+## 2026-09-23 — Published to GitHub
+
+### What I asked
+Before going public, run the same review as for the portfolio repo: check every file and the full commit history for secrets, API keys, credentials, personal info, emails and local paths, and report before changing anything. Then:
+1. remove `.claude/settings.local.json` from the history if it was committed, and ignore it;
+2. set this repo's git email to my GitHub no-reply address and rewrite the existing commits to use it;
+3. remove the deadline wording from CLAUDE.md and PROCESS_LOG.md.
+
+Push only after I say go.
+
+### Review findings
+- **No secrets, API keys, tokens, passwords or credentials** in any file or commit. The only matches were the word "token" in the motion-token notes.
+- **The commit email exposed my Mac's username and hostname** (`…@courtneys-air.mynetworksettings.com`) on all commits, because no email was set for this repo.
+- **`.claude/settings.local.json`** didn't exist and was never committed.
+- **No local paths** in files, history or commit messages.
+- **The deadline wording** was "built in ~24 hours" (CLAUDE.md), plus "Crunch-time" in this log.
+- **Names in the docs** ("Maya", "Buy anniversary gift") are made-up demo examples.
+- **Dependencies** resolve only to registry.npmjs.org.
+
+### Decisions
+- Keep the name "Courtney Connerly" on commits.
+- Keep the Co-Authored-By lines.
+- Leave the deadline wording in old history alone; remove it from the current files only.
+- No license (all rights reserved).
+- Leave the portfolio embed page's `frame-ancestors … chrome-extension:` header broad for now, because testers' extension IDs differ.
+
+### What was done
+- **`.gitignore`:** now ignores `.claude/settings.local.json`.
+- **CLAUDE.md:** "built in ~24 hours" is removed.
+- **This log:** "Crunch-time scope change" became "Scope change".
+- **Commit email:**
+  - This repo's git email is set to `40587314+ConnColl@users.noreply.github.com`.
+  - All commits were rewritten so author and committer both use it (`git filter-branch --env-filter`). Names, dates, messages and file contents are unchanged, and the file tree was verified identical.
+  - The rewrite's backup refs were deleted, reflogs expired and unreachable objects pruned, so the old email can't be recovered locally.
+- **Verified before pushing:**
+  - 0 occurrences of the old email or hostname, local paths or secret patterns across all history;
+  - all 27 commits carry the no-reply identity;
+  - the type check, the build and 74 tests pass.
+- **Published:** a public repo created with `gh repo create block-extension --public --source . --remote origin --push`.
+  - https://github.com/ConnColl/block-extension
+  - Description: "Block: a calm focus commitment device for Chrome. Plan tasks with the sites they need; everything else waits."
+  - `main` tracks `origin/main`, and GitHub matched the local HEAD (`fe00c39`) at publish time.
