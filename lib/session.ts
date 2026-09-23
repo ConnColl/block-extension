@@ -92,7 +92,7 @@ export function shouldSweepTab(url: string | undefined, allowedSites: string[]):
   return !isAllowedHost(host, allowedSites);
 }
 
-/** How long before a scheduled session the "Focus begins in 1:00" heads-up appears. A policy constant, not a motion token. */
+/** How long before a scheduled session the "Severing in 1:00" heads-up appears. A policy constant, not a motion token. */
 export const HEADS_UP_MS = 60_000;
 
 /** The next scheduled task starting within the heads-up window (not the one already running). */

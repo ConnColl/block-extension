@@ -6,6 +6,8 @@ import { useFocus, useNow } from '@/lib/hooks';
 import { formatRemaining, formatTime } from '@/lib/time';
 import { duration, easing, transition } from '@/lib/motion';
 import { SiteIcon } from '@/components/SiteIcon';
+import { copy } from '@/lib/copy';
+import { useTabCounts } from '@/lib/useTabCounts';
 import { useTabLimitNotices } from '@/lib/useTabLimitNotices';
 
 const OVERRIDE_URL = browser.runtime.getURL('/override.html');
@@ -56,6 +58,7 @@ export default function App() {
   const attempted = attemptedUrl();
   const host = attempted?.hostname.replace(/^www\./, '');
   const { container, item } = useEntrance(reduce);
+  const tabs = useTabCounts();
 
   useEffect(() => {
     document.title = task ? `${task.name} · Block` : 'Block';
@@ -72,12 +75,12 @@ export default function App() {
         <AnimatePresence mode="wait">
           {!loaded ? null : session && task ? (
             <motion.div key={`focus-${task.id}`} variants={container} initial="hidden" animate="show" exit="exit">
-              <motion.p variants={item} className="text-sm text-muted">
-                {host ? `${host} isn’t part of this task.` : 'This site isn’t part of this task.'}
+              <motion.p variants={item} className="text-base text-muted">
+                {copy.blockedLine} {copy.blockedLead}
               </motion.p>
 
               <motion.h1 variants={item} className="mt-3 text-4xl leading-tight font-semibold tracking-tight">
-                {task.name}
+                “{task.name}.”
               </motion.h1>
 
               {task.why && (
@@ -126,7 +129,13 @@ export default function App() {
                 </ul>
               </motion.section>
 
-              <motion.p variants={item} className="mt-20">
+              {tabs && tabs.paused > 0 && (
+                <motion.p variants={item} className="mt-10 text-sm text-muted">
+                  {copy.parked(tabs.paused)}
+                </motion.p>
+              )}
+
+              <motion.p variants={item} className={tabs && tabs.paused > 0 ? 'mt-12' : 'mt-20'}>
                 <a
                   href={OVERRIDE_URL}
                   className="text-sm text-muted underline-offset-4 hover:text-ink hover:underline"
@@ -138,10 +147,10 @@ export default function App() {
           ) : (
             <motion.div key="over" variants={container} initial="hidden" animate="show" exit="exit">
               <motion.h1 variants={item} className="text-4xl leading-tight font-semibold tracking-tight">
-                Your session is over.
+                {copy.welcomeTitle}
               </motion.h1>
               <motion.p variants={item} className="mt-3 text-lg text-muted">
-                Nothing is blocked right now.
+                {copy.welcomeBody}
               </motion.p>
               {attempted && (
                 <motion.div variants={item} className="mt-10">

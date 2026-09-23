@@ -164,7 +164,7 @@ async function scheduleAlarms(tasks: Task[], now: number) {
   }
 }
 
-/** Show "Focus begins in 1:00" for the next scheduled task starting within a minute; clear it otherwise. */
+/** Show the "Severing in 1:00" heads-up for the next scheduled task starting within a minute; clear it otherwise. */
 async function syncUpcoming(tasks: Task[], now: number, runningTaskId?: string) {
   const soon = findUpcomingTask(tasks, now, runningTaskId);
   const current = await upcomingItem.getValue();

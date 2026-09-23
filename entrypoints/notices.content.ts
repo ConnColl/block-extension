@@ -5,6 +5,7 @@ import { formatCountdown } from '@/lib/session';
 import { showNotice, type Notice } from '@/lib/notice';
 import { showTabLimitNotice } from '@/lib/tabLimitNotice';
 import type { TabLimitNotice } from '@/lib/tabs';
+import { copy } from '@/lib/copy';
 
 /**
  * Block's quiet in-page notices on web pages:
@@ -36,8 +37,8 @@ export default defineContentScript({
         taskId: upcoming.taskId,
         timer: setInterval(tick, 1000),
         notice: showNotice({
-          title: ['Focus begins in ', count, ` · ${upcoming.taskName}`],
-          body: 'Save your work. Tabs this task doesn’t need will be set aside.',
+          title: [copy.headsUpLead, count, '.'],
+          body: copy.headsUpBody,
           closeLabel: 'Hide this notice',
         }),
       };

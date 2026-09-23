@@ -25,7 +25,7 @@ When in doubt, cut scope — never ship something half-working.
 ## MVP scope (build only this)
 1. **Morning plan** (extension page, opened from the toolbar popup): add tasks with name, start/end time, allowed websites (domains), and an optional one-line "why" (what this task is for). Edit and delete tasks. On wide windows the form (left) and today's schedule (right) sit side by side; narrow windows stack them, form first. The schedule shows the current and upcoming tasks first, with past or finished tasks collapsed under "Earlier today (N)", and a subtle "now" marker. New tasks default to the current time (rounded up to 5 minutes, moved past any task already using it). Typed sites are normalized to bare domains (no protocol, `www` or path). Domains from open tabs are offered as one-click suggestions, and each allowed domain shows its favicon from Chrome's local favicon cache.
 2. **Focus session**: starts automatically at a task's start time (and can be started manually). While active, all main-frame navigations to non-allowed domains redirect to the Blocked page. Subdomains of an allowed domain are allowed.
-   - **Heads-up:** one minute before a scheduled session, open pages show a gentle notice: "Focus begins in 1:00 · [task name]". It gives people time to save their work before tabs are parked.
+   - **Heads-up:** one minute before a scheduled session, open pages show a gentle notice: "Severing in 1:00. Save anything you'll want later." It gives people time to save their work before tabs are parked.
    - **Two blocking layers.** The first is a declarativeNetRequest redirect rule. The second watches tab URL changes, to catch pages that load without a network request: pages served by a site's service worker (for example a signed-in Pinterest), pages restored from the back/forward cache, and prerendered pages.
    - **Tab parking:** at session start, open tabs on non-allowed sites are parked on the Blocked page and their URLs are remembered. When the session ends, they're restored. On back-to-back tasks, a tab the next task also disallows stays parked.
 3. **Blocked page**: calm intercept. Shows the current task, time remaining, and the allowed sites as links. No shaming language.
@@ -120,9 +120,27 @@ Easings:
 ## Design direction
 Typography-led, lots of whitespace, one accent color, light and dark mode. Quiet and confident.
 
+### Copy concept: the severed browser
+During a session, the browser is "severed". Your work self (the **innie**) is inside. Everything blocked or parked belongs to your **outty**, your outside self. The separation is consensual and self-chosen: morning you decided it. The tone is **calm and warm, never eerie**. Nothing threatens; the outty is just waiting.
+
+Inspired by the TV show *Severance*. The product never names the show, and never uses its visuals, logos, typefaces or characters.
+- **The words "innie", "outty" and "severing" were a deliberate choice.** "Outty" is spelled differently from the show's term. "Innie" matches the show's word, which is also everyday English.
+- **Known risk, accepted on 2026-09-23:** people who know the show will read these as references to it. Never pair them with the show's name, and never suggest an affiliation (see Honesty rules).
+- All session copy lives in `lib/copy.ts`.
+
+| Moment | Copy |
+|---|---|
+| Heads-up | "Severing in 1:00. Save anything you'll want later." |
+| Blocked page | "That's an outty task. In here, you're working on '[task].'" |
+| Parked tabs | "4 tabs waiting for your outty." |
+| Popup (session) | "Innie · 18 min left" |
+| Session end | "Welcome back outty. Your tabs are right where you left them." |
+| Ad break | unchanged |
+
 ## Honesty rules
 - Never invent usage data, users, or metrics. Use `[RESULT TBD]` placeholders.
 - Block is "inspired by" Brick; never implies affiliation.
+- The severed-browser copy is inspired by *Severance*; never name the show in the product and never imply affiliation.
 
 ## How to work with me
 - Before building anything larger than one component, show a short plan and wait for approval.

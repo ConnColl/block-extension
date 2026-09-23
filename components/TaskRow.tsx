@@ -2,6 +2,7 @@ import { motion } from 'motion/react';
 import type { Task } from '@/lib/tasks';
 import { formatLength, formatTime } from '@/lib/time';
 import { SiteIcon } from './SiteIcon';
+import { copy } from '@/lib/copy';
 import { duration, easing } from '@/lib/motion';
 import { useReducedMotion } from 'motion/react';
 
@@ -53,7 +54,10 @@ export function TaskRow({ task, locked, remaining, startsIn, startable, endedEar
           ) : endedEarly ? (
             <>{formatLength(task.start, task.end)} · Ended early</>
           ) : startsIn ? (
-            <span className="font-medium text-accent">Focus begins in {startsIn}</span>
+            <span className="font-medium text-accent">
+              {copy.headsUpLead}
+              {startsIn}
+            </span>
           ) : (
             formatLength(task.start, task.end)
           )}

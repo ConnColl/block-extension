@@ -10,6 +10,7 @@ import { duration, durationMs, easing, transition } from '@/lib/motion';
 import { useTabLimitNotices } from '@/lib/useTabLimitNotices';
 import { HoldButton } from '@/components/HoldButton';
 import { Confession } from '@/components/Confession';
+import { copy } from '@/lib/copy';
 
 const PLAN_URL = browser.runtime.getURL('/plan.html');
 
@@ -199,8 +200,11 @@ export default function App() {
           {view === 'ended' && stage.kind === 'ended' && (
             <motion.div key="ended" variants={container} initial="hidden" animate="show" exit="exit">
               <motion.h1 variants={item} className="text-3xl leading-tight font-semibold tracking-tight">
-                Session ended.
+                {copy.welcomeTitle}
               </motion.h1>
+              <motion.p variants={item} className="mt-3 text-lg text-muted">
+                {copy.welcomeBody}
+              </motion.p>
               <motion.div variants={item} className="mt-6">
                 <SpendingTokens after={stage.passesLeft} />
               </motion.div>

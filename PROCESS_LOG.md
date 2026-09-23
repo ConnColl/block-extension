@@ -734,3 +734,53 @@ Keep the original release sentences as they are. Don't add the task name ("“[t
 - **Adding a task:** "Reply to recruiter" (11:41–11:56) settled between the current task and "Review Maya's deck". The mid-animation screenshot shows its accent bar while the rows below shift. The next default then became 11:56.
 - **Narrow (700px):** one column, form first.
 - **Tests:** 58 unit tests pass, adding `suggestSlot` (rounding, skipping clashes, stopping before the next task, the 11:59 PM cap), `partitionSchedule` (the end minute, ended-early tasks) and `progressThrough`.
+
+---
+
+## 2026-09-23 — Copy concept: the severed browser
+
+### What I asked
+- **New copy concept:** during a session, the browser is "severed". Your work self is inside, and everything blocked or parked belongs to your "outside self". It's a consensual, self-chosen separation, inspired by the show *Severance*.
+- The first draft brief also said the product should use only its own original language: no show names, terms or visuals.
+- The tone should be calm and warm, never eerie.
+
+The drafts:
+- **Heads-up:** "Severing in 1:00. Save anything you'll want later."
+- **Blocked page:** "That's an outty task. In here, you're working on 'Buy Anniversary Gift.'"
+- **Parked tabs:** "4 tabs waiting for your outty."
+- **Popup:** "Severence · 18 min left"
+- **Session end:** "Welcome back outty. Your tabs are right where you left them."
+- **Ad break:** unchanged.
+
+### The conflict raised, and the decision
+- **Claude's flag:** several drafts broke the brief's own "original language only" rule.
+  - "Severence" is one letter off the show's title and could imply an affiliation.
+  - "Outty" is a near-copy of the show's term.
+- **The alternative offered** used only the concept's own words, inside and outside self: "Going inside in 1:00", "That's for your outside self", "Inside · 18 min left", "Welcome back."
+- **My decision:** keep the original drafts, except the popup, which says **"Innie · 18 min left"** instead of "Severence". So the show's *name* stays out of the product, and the innie/outty/severing vocabulary stays in.
+
+### Why
+- The innie/outty pair is instantly legible and warm. It gives the separation a playful, human name, which the plainer inside/outside words don't.
+- "Outty" is spelled differently, and "innie" is also everyday English.
+- **Risk accepted and recorded:** people who know the show will recognise the words.
+- **Mitigation:** never name the show in the product, never borrow its visuals, and never pair the words with anything suggesting an affiliation. CLAUDE.md's Honesty rules now say this explicitly.
+
+### What changed
+- **`lib/copy.ts`** is new and holds all the session copy in one place.
+- **Heads-up notice** (in-page): "Severing in 0:55." / "Save anything you'll want later." The task name is no longer in the notice. The popup and plan-row countdowns also read "Severing in 0:42".
+- **Blocked page:** "That's an outty task. In here, you're working on" above the task as the main heading, in quotes: "“Buy anniversary gift.”" The blocked site's name is no longer shown.
+  - When tabs are parked, "4 tabs waiting for your outty." appears under the allowed sites.
+  - The session-over state reads "Welcome back outty." / "Your tabs are right where you left them." with **Continue to <site>** kept.
+- **Popup:** the status line reads "Innie · 18 min left". It replaces the "IN FOCUS" label and the large time line, which is folded into the status. "Until 10:30 AM" stays. The parked line reads "4 tabs waiting for your outty." under the tab count, replacing "· 4 paused".
+- **Override:** after spending a pass, the screen reads "Welcome back outty." / "Your tabs are right where you left them." above the pass tokens.
+- **Ad break:** unchanged.
+- **CLAUDE.md:**
+  - Design direction has a new "Copy concept: the severed browser" subsection, with the concept, the tone, the inspiration, the vocabulary decision and its accepted risk, and the copy table.
+  - The heads-up line in MVP item 2 is updated.
+  - The Honesty rules add: never name the show in the product, and never imply affiliation.
+
+### Verified in a real Chrome (headless)
+- **Popup:** "Innie · 18 min left / Buy anniversary gift / Ten years on Saturday / Until 11:23 AM / 3 of 5 tabs in use / 4 tabs waiting for your outty."
+- **Blocked page:** "That's an outty task. In here, you're working on / “Buy anniversary gift.” / Ten years on Saturday / 18 min left · until 11:23 AM / etsy.com → uncommongoods.com → / 4 tabs waiting for your outty. / End this session early".
+- **Session end:** "Welcome back outty. / Your tabs are right where you left them. / Continue to pinterest.com".
+- **Checks:** 58 tests, the type check and the build pass.

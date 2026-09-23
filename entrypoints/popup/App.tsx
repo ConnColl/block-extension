@@ -5,6 +5,7 @@ import { HEADS_UP_MS, formatCountdown, remainingMs, taskStartMs } from '@/lib/se
 import { SiteIcon } from '@/components/SiteIcon';
 import { useTabCounts } from '@/lib/useTabCounts';
 import { TAB_LIMIT } from '@/lib/tabs';
+import { copy } from '@/lib/copy';
 import { useFocus, useNow } from '@/lib/hooks';
 import { dateKey, formatRemaining, formatTime } from '@/lib/time';
 import { transition } from '@/lib/motion';
@@ -53,12 +54,11 @@ export default function App() {
             animate={{ opacity: 1, y: 0, transition: transition.enter }}
             exit={{ opacity: 0, transition: transition.exit }}
           >
-            <p className="text-xs font-medium tracking-wide text-accent uppercase">In focus</p>
+            <p className="text-sm font-medium text-accent tabular-nums">
+              {copy.popupStatus(formatRemaining(remainingMs(session, now)))}
+            </p>
             <h1 className="mt-2 text-lg leading-snug font-semibold tracking-tight">{task.name}</h1>
             {task.why && <p className="mt-1 text-sm text-muted">{task.why}</p>}
-            <p className="mt-4 text-2xl font-semibold tracking-tight tabular-nums">
-              {formatRemaining(remainingMs(session, now))}
-            </p>
             <p className="mt-1 text-sm text-muted">Until {formatTime(task.end)}</p>
             {tabs && (
               <div className="mt-5">
@@ -66,10 +66,9 @@ export default function App() {
                   <span className="font-medium tabular-nums">
                     {tabs.inUse} of {TAB_LIMIT}
                   </span>{' '}
-                  <span className="text-muted">
-                    tabs in use{tabs.paused > 0 && <> · {tabs.paused} paused</>}
-                  </span>
+                  <span className="text-muted">tabs in use</span>
                 </p>
+                {tabs.paused > 0 && <p className="mt-1 text-sm text-muted">{copy.parked(tabs.paused)}</p>}
                 <div aria-hidden="true" className="mt-2 flex gap-1">
                   {Array.from({ length: TAB_LIMIT }, (_, i) => (
                     <span
@@ -103,7 +102,8 @@ export default function App() {
               {next && taskStartMs(next) - now <= HEADS_UP_MS ? (
                 <>
                   <span className="font-medium text-accent">
-                    Focus begins in <span className="tabular-nums">{formatCountdown(taskStartMs(next) - now)}</span>
+                    {copy.headsUpLead}
+                    <span className="tabular-nums">{formatCountdown(taskStartMs(next) - now)}</span>
                   </span>{' '}
                   · {next.name}
                 </>
