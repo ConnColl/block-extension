@@ -1177,3 +1177,37 @@ The relay page confirmed a race: a single "hello" sent on iframe load is usually
 
 ### Testing note
 My first simulated race also stopped the local relay from hearing YouTube for 1.5s, so it missed the player's one-time "ready" and Block fell back to The Pitch. That was a flaw in the test stand-in, not in Block or the real relay. The stand-in was corrected to drop only Block's early messages, which is the real race.
+
+---
+
+## 2026-09-24 — Ad-break embed moved to work.courtneyconnerly.com
+
+### What I asked
+The portfolio moved from `court-portfolio-gules.vercel.app` to `https://work.courtneyconnerly.com`, and the old address now 308-redirects.
+- Load the ad-break embed from the new domain, and make every origin check trust it.
+- Check that the embed page's `frame-ancestors` still allows `chrome-extension:` on the new domain.
+- Rebuild, test the ad break the same way as last time, then commit and push so the public version works.
+
+### Checks before changing anything
+- **Old address:** `HTTP 308`, `location: https://work.courtneyconnerly.com/embed/ad-break`.
+- **New address:** `HTTP 200` with `Content-Security-Policy: frame-ancestors 'self' chrome-extension:`, so extensions can still frame it.
+- **Why a change was needed despite the redirect:** Block's origin check compares each message's origin with the embed URL's origin. Following the redirect would have made every relay message come from the new domain, so Block would have ignored them all and fallen back to The Pitch.
+
+### What changed
+- **`lib/adEmbed.ts`:** `AD_EMBED_URL` is now `https://work.courtneyconnerly.com/embed/ad-break`.
+  - `AD_EMBED_ORIGIN` is derived from it, and it's the only origin Block trusts. It's used both to address messages to the relay and to accept messages from it (`VideoAd`), so this one line updates every Block-side origin check.
+  - The relay's own checks (a `chrome-extension://` parent, and `https://www.youtube-nocookie.com` for the player) don't involve the portfolio domain, so nothing there needed to change.
+- **CLAUDE.md:** the Override design's "Current build" now names the new URL.
+- **This log:** earlier entries keep the old address as history.
+
+### Verified in a real Chrome (headless), production build against the live new domain
+- **Default:**
+  - relay messages: `hello-ack`, `ready`, `state`;
+  - playing (state 1), muted;
+  - **Sound on** → `muted: false`, and **Pause** → state 2, with the buttons flipping to "Play" and "Sound off";
+  - a click at the video's centre hits Block's overlay.
+- **Reduced motion (`?paused=1`):** ack and ready arrived; the video started paused, with a **Play** button; Play → state 1.
+- **Rules:** the header reads "Ad break · Your break begins in 9:59"; reloading mid-break returned to "End this session early?" (logged `abandoned@ad-break`); the 10-second developer break ended the session with "Welcome back outty…" (logged `ended@ad-break`).
+- **Fallback:** a test build pointed at a page on the new domain with no relay (`/embed/no-relay-here`) received no messages and showed The Pitch after 8s.
+- **Production build:** it contains only the new URL; the old domain and the test URLs aren't in it.
+- **Tests:** 74 unit tests pass, and the type check is clean.

@@ -13,7 +13,7 @@
  *   ?paused=1 on the embed URL starts the video paused (reduced motion).
  */
 export const AD_EMBED_URL: string =
-  (import.meta.env.WXT_AD_EMBED_URL as string | undefined) || 'https://court-portfolio-gules.vercel.app/embed/ad-break';
+  (import.meta.env.WXT_AD_EMBED_URL as string | undefined) || 'https://work.courtneyconnerly.com/embed/ad-break';
 
 export const AD_EMBED_ORIGIN = new URL(AD_EMBED_URL).origin;
 

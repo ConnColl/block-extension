@@ -61,7 +61,7 @@ The only way to end a session early, or to edit or delete the task in an active 
    - During the confession and the ad break, **"Back to work"** sits in a top bar: prominent, always visible, and out of the submit path.
 4. **Unskippable "ad break."** After the confession, a fixed 10-minute ad break plays. The session only ends if the user sits through it.
    - The break is a sequence of short spots, labeled like TV: **"Ad 3 of 12 · Your break begins in 7:42"**. The spot count and lengths add up to exactly 10 minutes.
-   - **Current build (demo placeholder):** the whole break is one YouTube video (`rMLFJqtpGUQ`). It's loaded through an embed page on the portfolio site, `https://court-portfolio-gules.vercel.app/embed/ad-break`, set in `lib/adEmbed.ts`. The iframe has `allow="autoplay"`.
+   - **Current build (demo placeholder):** the whole break is one YouTube video (`rMLFJqtpGUQ`). It's loaded through an embed page on the portfolio site, `https://work.courtneyconnerly.com/embed/ad-break`, set in `lib/adEmbed.ts`. The iframe has `allow="autoplay"`.
      - **Why the portfolio page:** YouTube refuses embeds from extension pages (Error 153, because a `chrome-extension://` page has no normal web origin). Block does **not** rewrite the referrer to get around it.
      - **The relay:** the portfolio page relays messages between Block and the player (protocol in `lib/adEmbed.ts`). That's what makes Block's **Pause/Play** and **Sound on/off** buttons work, and it reports ready, state and errors back to Block.
      - **Playback:** muted autoplay, looping until the 10 minutes are up, with related videos, controls and click-through off. A transparent layer over the iframe blocks clicks.
