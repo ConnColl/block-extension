@@ -1211,3 +1211,37 @@ The portfolio moved from `court-portfolio-gules.vercel.app` to `https://work.cou
 - **Fallback:** a test build pointed at a page on the new domain with no relay (`/embed/no-relay-here`) received no messages and showed The Pitch after 8s.
 - **Production build:** it contains only the new URL; the old domain and the test URLs aren't in it.
 - **Tests:** 74 unit tests pass, and the type check is clean.
+
+---
+
+## 2026-09-24 — v1.0 release on GitHub
+
+### What I asked
+- Create a GitHub release for Block: build the production extension, zip the output folder, and publish it as v1.0 with the zip attached.
+- Add a README with a simple "Install in 4 steps" section for non-developers (download the zip, unzip, open `chrome://extensions` with Developer mode on, Load unpacked), keeping build-from-source steps below it for developers.
+- Commit and push.
+
+### What was done
+- **README.md** (new; the repo had none):
+  - what Block does;
+  - **Install in 4 steps**, plus "good to know" notes: keep the folder, what the install warning means, how to update;
+  - **Build from source** (Node 22+, which WXT requires), with a command table;
+  - Privacy (local storage; the ad break loads from work.courtneyconnerly.com and youtube-nocookie.com);
+  - Known limitations;
+  - "© Courtney Connerly. All rights reserved."
+  - It says Block is inspired by Brick and not affiliated, per the honesty rules.
+- **Version:** 0.1.0 → **1.0.0** in `package.json` and `package-lock.json`, so the manifest Chrome shows matches the release.
+- **The zip:** a clean `.output`, then `npm run zip` → `block-extension-1.0.0-chrome.zip`, published as **`block-v1.0.zip`** (171 KB, 17 files). Checked inside:
+  - `manifest.json` at the zip root;
+  - Block 1.0.0, with the permissions `storage`, `alarms`, `declarativeNetRequest`, `favicon` and host access `<all_urls>`;
+  - the embed URL is `https://work.courtneyconnerly.com/embed/ad-break` only;
+  - no test URLs, old domain, local paths or source maps.
+- **Smoke test of the unzipped folder** (Load unpacked in a real, headless Chrome):
+  - the plan loads ("Morning plan / Add a task for your innie"), and the version reads 1.0.0;
+  - a session starts;
+  - a blocked site goes to the Blocked page ("That's an outty task…"), and the allowed site loads;
+  - the popup shows "Innie · … left", the tab count and Done.
+- **Release:** `gh release create v1.0` on `main` at `27555ca`, titled "Block v1.0", with install steps, what's included and good-to-know notes.
+  - https://github.com/ConnColl/block-extension/releases/tag/v1.0
+  - The downloaded asset's SHA-256 matches the tested zip.
+- **Checks:** 74 tests pass, and the type check is clean.
